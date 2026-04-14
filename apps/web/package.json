@@ -1,5 +1,8 @@
 {
   "name": "@ma/web",
   "version": "0.0.0",
-  "private": true
+  "private": true,
+  "scripts": {
+    "dev": "node -e \"console.log('[@ma/web] bootstrap placeholder: dev script not implemented yet')\""
+  }
 }
