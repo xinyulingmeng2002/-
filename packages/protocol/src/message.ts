@@ -6,6 +6,6 @@ export const messageSchema = z.object({
   kind: z.enum(["chat", "system", "status"]),
   speakerParticipantId: z.string(),
   body: z.string()
-});
+}).strict();
 
 export type Message = z.infer<typeof messageSchema>;

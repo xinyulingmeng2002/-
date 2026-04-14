@@ -13,4 +13,26 @@ describe("protocol schemas", () => {
       messageSchema.parse({ id: "m1", kind: "chat", roomId: "r1", body: "hi" }),
     ).toThrow();
   });
+
+  it("rejects unknown keys in protocol objects", () => {
+    expect(() =>
+      participantSchema.parse({
+        id: "p1",
+        type: "human",
+        displayName: "Participant 1",
+        extra: "nope"
+      }),
+    ).toThrow();
+
+    expect(() =>
+      messageSchema.parse({
+        id: "m1",
+        roomId: "r1",
+        kind: "chat",
+        speakerParticipantId: "p1",
+        body: "hi",
+        extra: true
+      }),
+    ).toThrow();
+  });
 });

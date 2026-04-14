@@ -5,6 +5,6 @@ export const memorySchema = z.object({
   roomId: z.string(),
   participantId: z.string(),
   content: z.string().min(1)
-});
+}).strict();
 
 export type Memory = z.infer<typeof memorySchema>;
