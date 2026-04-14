@@ -2,7 +2,20 @@
   "name": "@ma/server",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "dev": "node -e \"console.log('[@ma/server] bootstrap placeholder: dev script not implemented yet')\""
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest --root ../.. --config apps/server/vitest.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "fastify": "^5.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "tsx": "^4.20.6"
   }
 }
