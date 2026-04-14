@@ -1,0 +1,23 @@
+# Runtime data
+data/db/
+data/logs/
+data/uploads/
+
+# Environment
+.env
+.env.*
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+coverage/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
