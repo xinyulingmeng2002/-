@@ -3,7 +3,9 @@ import { messageSchema, participantSchema } from "../src";
 
 describe("protocol schemas", () => {
   it("rejects participants without a concrete type", () => {
-    expect(() => participantSchema.parse({ id: "p1" })).toThrow();
+    expect(() =>
+      participantSchema.parse({ id: "p1", displayName: "Participant 1" }),
+    ).toThrow();
   });
 
   it("requires speaker identity on user-facing messages", () => {
