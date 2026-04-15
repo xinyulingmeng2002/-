@@ -7,6 +7,9 @@ type MessagesRoutesOptions = {
   messageService: MessageService;
 };
 
+const MAX_SPEAKER_PARTICIPANT_ID_LENGTH = 128;
+const MAX_BODY_LENGTH = 4000;
+
 export const messagesRoutes: FastifyPluginAsync<MessagesRoutesOptions> = async (app, options) => {
   const { messageService } = options;
 
@@ -26,17 +29,30 @@ export const messagesRoutes: FastifyPluginAsync<MessagesRoutesOptions> = async (
     ) {
       return reply.code(400).send({ error: "roomId, speakerParticipantId, and body are required" });
     }
+    if (speakerParticipantId.length > MAX_SPEAKER_PARTICIPANT_ID_LENGTH) {
+      return reply
+        .code(400)
+        .send({ error: `speakerParticipantId must be <= ${MAX_SPEAKER_PARTICIPANT_ID_LENGTH}` });
+    }
+    if (body.length > MAX_BODY_LENGTH) {
+      return reply.code(400).send({ error: `body must be <= ${MAX_BODY_LENGTH}` });
+    }
     if (!isSafeRoomId(roomId)) {
       return reply.code(400).send({ error: "roomId must match ^[a-zA-Z0-9_-]{1,64}$" });
     }
 
-    const event = await messageService.appendChatMessage({
-      roomId,
-      speakerParticipantId,
-      body
-    });
+    try {
+      const event = await messageService.appendChatMessage({
+        roomId,
+        speakerParticipantId,
+        body
+      });
 
-    return reply.code(201).send(event);
+      return reply.code(201).send(event);
+    } catch (error) {
+      app.log.error({ error }, "message persistence failed");
+      return reply.code(500).send({ error: "message persistence failed" });
+    }
   });
 
   app.get("/api/messages", async (request, reply) => {
@@ -48,6 +64,11 @@ export const messagesRoutes: FastifyPluginAsync<MessagesRoutesOptions> = async (
       return reply.code(400).send({ error: "roomId must match ^[a-zA-Z0-9_-]{1,64}$" });
     }
 
-    return { items: messageService.listRoomEvents(roomId) };
+    try {
+      return { items: messageService.listRoomEvents(roomId) };
+    } catch (error) {
+      app.log.error({ error }, "message log read failed");
+      return reply.code(500).send({ error: "message log read failed" });
+    }
   });
 };

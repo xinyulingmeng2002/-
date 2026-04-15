@@ -40,6 +40,8 @@ function asMessage(error: unknown): string {
 }
 
 export function createEventLogStore(dataDir?: string): EventLogStore {
+  // Concurrency model (Task 6): single-process/single-writer append semantics.
+  // Cross-process coordination is intentionally out of scope for now.
   return {
     append(event) {
       const filePath = getRoomLogPath(event.roomId, dataDir);
