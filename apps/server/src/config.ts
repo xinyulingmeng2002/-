@@ -11,6 +11,6 @@ export function getServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCon
 
   return {
     host: env.HOST ?? DEFAULT_HOST,
-    port: Number.isInteger(parsedPort) && parsedPort > 0 ? parsedPort : DEFAULT_PORT
+    port: Number.isInteger(parsedPort) && parsedPort >= 0 ? parsedPort : DEFAULT_PORT
   };
 }
