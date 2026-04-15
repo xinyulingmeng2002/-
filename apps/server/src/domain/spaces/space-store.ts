@@ -1,6 +1,7 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+
+import { readJsonSnapshot, writeJsonSnapshotAtomic } from "../storage/json-snapshot";
 
 export type SpaceRecord = {
   id: string;
@@ -21,25 +22,25 @@ function getSpacesPath(dataDir?: string): string {
   return join(dataDir ?? process.cwd(), "data", "db", "spaces.json");
 }
 
-function ensureSpacesFile(filePath: string): void {
-  mkdirSync(dirname(filePath), { recursive: true });
-
-  try {
-    readFileSync(filePath, "utf8");
-  } catch {
-    writeFileSync(filePath, JSON.stringify({ items: [DEFAULT_SPACE] }, null, 2), "utf8");
-  }
-}
-
 function readSpaces(filePath: string): SpaceRecord[] {
-  ensureSpacesFile(filePath);
-  const payload = readFileSync(filePath, "utf8");
-  const parsed = JSON.parse(payload) as { items?: SpaceRecord[] };
-  return Array.isArray(parsed.items) ? parsed.items : [];
+  const parsed = readJsonSnapshot<{ items?: SpaceRecord[] }>(filePath, {
+    items: [DEFAULT_SPACE]
+  });
+
+  const items = Array.isArray(parsed.items) ? parsed.items : [];
+  const hasDefaultSpace = items.some((item) => item.id === DEFAULT_SPACE.id);
+
+  if (!hasDefaultSpace) {
+    const nextItems = [DEFAULT_SPACE, ...items];
+    writeSpaces(filePath, nextItems);
+    return nextItems;
+  }
+
+  return items;
 }
 
 function writeSpaces(filePath: string, items: SpaceRecord[]): void {
-  writeFileSync(filePath, JSON.stringify({ items }, null, 2), "utf8");
+  writeJsonSnapshotAtomic(filePath, { items });
 }
 
 export function createSpaceStore(dataDir?: string): SpaceStore {

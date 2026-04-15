@@ -1,6 +1,7 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+
+import { readJsonSnapshot, writeJsonSnapshotAtomic } from "../storage/json-snapshot";
 
 export type RoomRecord = {
   id: string;
@@ -18,25 +19,13 @@ function getRoomsPath(dataDir?: string): string {
   return join(dataDir ?? process.cwd(), "data", "db", "rooms.json");
 }
 
-function ensureRoomsFile(filePath: string): void {
-  mkdirSync(dirname(filePath), { recursive: true });
-
-  try {
-    readFileSync(filePath, "utf8");
-  } catch {
-    writeFileSync(filePath, JSON.stringify({ items: [] }, null, 2), "utf8");
-  }
-}
-
 function readRooms(filePath: string): RoomRecord[] {
-  ensureRoomsFile(filePath);
-  const payload = readFileSync(filePath, "utf8");
-  const parsed = JSON.parse(payload) as { items?: RoomRecord[] };
+  const parsed = readJsonSnapshot<{ items?: RoomRecord[] }>(filePath, { items: [] });
   return Array.isArray(parsed.items) ? parsed.items : [];
 }
 
 function writeRooms(filePath: string, items: RoomRecord[]): void {
-  writeFileSync(filePath, JSON.stringify({ items }, null, 2), "utf8");
+  writeJsonSnapshotAtomic(filePath, { items });
 }
 
 export function createRoomStore(dataDir?: string): RoomStore {
