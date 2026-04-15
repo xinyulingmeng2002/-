@@ -9,10 +9,18 @@ const DEFAULT_HOST = "0.0.0.0";
 const DEFAULT_PORT = 3000;
 const DEFAULT_UPLOADS_PUBLIC_BASE_PATH = "/uploads";
 
+function isAbsoluteHttpUrl(value: string): boolean {
+  return value.startsWith("http://") || value.startsWith("https://");
+}
+
 function normalizeBasePath(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
     return DEFAULT_UPLOADS_PUBLIC_BASE_PATH;
+  }
+
+  if (isAbsoluteHttpUrl(trimmed)) {
+    return trimmed.replace(/\/+$/, "");
   }
 
   const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;

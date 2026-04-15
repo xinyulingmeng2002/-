@@ -23,6 +23,23 @@ function getAttachmentKind(mimeType: string): "image" | "file" {
   return mimeType.startsWith("image/") ? "image" : "file";
 }
 
+function isAbsoluteHttpUrl(value: string): boolean {
+  return value.startsWith("http://") || value.startsWith("https://");
+}
+
+function buildAttachmentUrl(request: { protocol: string; headers: { host?: string } }, base: string): string {
+  if (isAbsoluteHttpUrl(base)) {
+    return base;
+  }
+
+  const host = request.headers.host;
+  if (!host) {
+    return `${request.protocol}://localhost${base}`;
+  }
+
+  return `${request.protocol}://${host}${base}`;
+}
+
 export const uploadsRoutes: FastifyPluginAsync<UploadsRoutesOptions> = async (app, options) => {
   await app.register(multipart, {
     limits: {
@@ -53,11 +70,18 @@ export const uploadsRoutes: FastifyPluginAsync<UploadsRoutesOptions> = async (ap
       mkdirSync(dirPath, { recursive: true });
       writeFileSync(filePath, content);
 
+      const absoluteBaseUrl = buildAttachmentUrl(
+        { protocol: request.protocol, headers: { host: request.headers.host } },
+        basePath
+      );
+
       return reply.code(201).send({
-        id,
-        messageId: "",
-        kind: getAttachmentKind(file.mimetype),
-        url: `${basePath}/${year}/${month}/${storedName}`,
+        attachment: {
+          id,
+          messageId: "",
+          kind: getAttachmentKind(file.mimetype),
+          url: `${absoluteBaseUrl}/${year}/${month}/${storedName}`
+        },
         originalName,
         mimeType: file.mimetype,
         sizeBytes: content.byteLength
