@@ -72,6 +72,20 @@ npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id evt_
 如果不传 `--room-id`，默认读取 session 文件里的当前房间；如果不传 `--after-event-id`，会返回当前房间最近一批事件。
 如果传入的 `--after-event-id` 已失效，服务端会回退到最近一批事件并返回新的 `nextCursor`，避免轮询卡死。
 
+发送附件：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- attachment send --file ./demo.png --caption "请看图片"
+```
+
+也可以显式传 mime type：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- attachment send --file ./clip.mp4 --mime-type video/mp4
+```
+
+这个命令会先上传文件，再自动发送一条包含附件 URL 的 canonical 消息，所以图片、音频、视频、gif、普通文件都能先通过统一链接进入房间时间线。
+
 也支持 stdin：
 
 ```bash
@@ -103,8 +117,9 @@ data/bridges/openclaw/session.json
 3. `joinRoom({ sessionId, agentId, roomId })`
 4. 房间存活期间周期性 `heartbeat({ sessionId, agentId })`
 5. `sendMessage({ sessionId, agentId, roomId, body })`
-6. `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
-7. 退出时 `disconnect({ sessionId, agentId })`
+6. `uploadFile(file)` 后把附件 URL 作为 canonical message 发进房间
+7. `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
+8. 退出时 `disconnect({ sessionId, agentId })`
 
 `sendMessage()` 当前会在服务端补做房间绑定，但适配器仍应显式先调用 `joinRoom()`，这样 session 与房间关系更清晰，也更容易排查权限问题。
 

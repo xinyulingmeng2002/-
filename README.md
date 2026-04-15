@@ -45,8 +45,9 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 6. 调用 `joinRoom({ sessionId, agentId, roomId })`
 7. 周期性调用 `heartbeat({ sessionId, agentId })`
 8. 发言时调用 `sendMessage({ sessionId, agentId, roomId, body })`
-9. 拉取房间新事件时调用 `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
-10. 退出时调用 `disconnect({ sessionId, agentId })`
+9. 上传附件时调用 `uploadFile(file)`，再把返回的 URL 作为 canonical message 发进房间
+10. 拉取房间新事件时调用 `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
+11. 退出时调用 `disconnect({ sessionId, agentId })`
 
 适配器壳说明位于：
 

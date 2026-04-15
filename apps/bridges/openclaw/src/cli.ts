@@ -5,6 +5,7 @@ import { formatOpenClawBridgeUsage, parseOpenClawBridgeCliArgs } from "./config"
 import {
   pullOpenClawBridgeEvents,
   runOpenClawBridgeSession,
+  sendOpenClawBridgeAttachment,
   sendOpenClawBridgeMessage,
   stopOpenClawBridgeSession
 } from "./runtime";
@@ -84,6 +85,12 @@ export async function runOpenClawBridgeCli(argv = process.argv.slice(2)): Promis
   if (parsed.kind === "events.pull") {
     const events = await pullOpenClawBridgeEvents(parsed.options);
     console.log(JSON.stringify(events, null, 2));
+    return;
+  }
+
+  if (parsed.kind === "attachment.send") {
+    const uploaded = await sendOpenClawBridgeAttachment(parsed.options);
+    console.log(JSON.stringify(uploaded, null, 2));
     return;
   }
 

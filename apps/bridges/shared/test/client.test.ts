@@ -211,4 +211,63 @@ describe("bridge client", () => {
       })
     );
   });
+
+  it("uploads multipart files through the shared bridge client", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          attachment: {
+            id: "att-1",
+            messageId: "",
+            kind: "image",
+            url: "http://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png"
+          },
+          originalName: "diagram.png",
+          mimeType: "image/png",
+          sizeBytes: 4
+        }),
+        {
+          status: 201,
+          headers: {
+            "content-type": "application/json"
+          }
+        }
+      )
+    );
+
+    const client = createBridgeClient({
+      baseUrl: "http://127.0.0.1:3000",
+      token: "secret",
+      fetch: fetchMock
+    });
+
+    const uploaded = await client.uploadFile({
+      fileName: "diagram.png",
+      mimeType: "image/png",
+      content: Uint8Array.from([1, 2, 3, 4])
+    });
+
+    expect(uploaded).toEqual({
+      attachment: {
+        id: "att-1",
+        messageId: "",
+        kind: "image",
+        url: "http://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png"
+      },
+      originalName: "diagram.png",
+      mimeType: "image/png",
+      sizeBytes: 4
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/uploads",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret"
+        },
+        body: expect.any(FormData)
+      })
+    );
+  });
 });

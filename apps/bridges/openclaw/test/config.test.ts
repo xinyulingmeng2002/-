@@ -70,4 +70,24 @@ describe("openclaw bridge config", () => {
       }
     });
   });
+
+  it("parses attachment send arguments", () => {
+    const parsed = parseOpenClawBridgeCliArgs(
+      ["attachment", "send", "--file", "/tmp/diagram.png", "--caption", "看这个", "--mime-type", "image/png"],
+      {
+        MA_BRIDGE_SESSION_FILE: "/tmp/openclaw-session.json"
+      },
+      "/workspace"
+    );
+
+    expect(parsed).toEqual({
+      kind: "attachment.send",
+      options: {
+        sessionFilePath: "/tmp/openclaw-session.json",
+        filePath: "/tmp/diagram.png",
+        caption: "看这个",
+        mimeType: "image/png"
+      }
+    });
+  });
 });

@@ -31,6 +31,12 @@ type PullEventsInput = JoinRoomInput & {
   limit?: number;
 };
 
+type UploadFileInput = {
+  fileName: string;
+  mimeType?: string;
+  content: Uint8Array;
+};
+
 export function createBridgeClient(config: BridgeClientConfig) {
   const baseUrl = normalizeBaseUrl(config.baseUrl);
   const fetchImpl = config.fetch ?? globalThis.fetch;
@@ -78,6 +84,30 @@ export function createBridgeClient(config: BridgeClientConfig) {
     return (await response.json()) as T;
   }
 
+  async function postMultipart<T>(path: string, input: UploadFileInput): Promise<T> {
+    const formData = new FormData();
+    const binary = new Uint8Array(input.content).buffer;
+    formData.append(
+      "file",
+      new Blob([binary], {
+        type: input.mimeType ?? "application/octet-stream"
+      }),
+      input.fileName
+    );
+
+    const response = await fetchImpl(resolveBridgeUrl(baseUrl, path), {
+      method: "POST",
+      headers: createTokenHeaders(config.token),
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`bridge_request_failed:${response.status}`);
+    }
+
+    return (await response.json()) as T;
+  }
+
   return {
     baseUrl,
     headers() {
@@ -106,6 +136,9 @@ export function createBridgeClient(config: BridgeClientConfig) {
         afterEventId: input.afterEventId,
         limit: input.limit
       });
+    },
+    uploadFile<T>(input: UploadFileInput): Promise<T> {
+      return postMultipart<T>("/api/uploads", input);
     }
   };
 }

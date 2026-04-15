@@ -1,3 +1,6 @@
+import { basename } from "node:path";
+import { readFileSync } from "node:fs";
+
 import { createBridgeClient } from "../../shared/src/client";
 
 import {
@@ -33,6 +36,12 @@ type BridgePullEventsInput = BridgeJoinRoomInput & {
   limit?: number;
 };
 
+type BridgeUploadFileInput = {
+  fileName: string;
+  mimeType?: string;
+  content: Uint8Array;
+};
+
 export type OpenClawBridgeClient = {
   connect<T>(input: BridgeConnectInput): Promise<T>;
   heartbeat<T>(input: BridgeSessionInput): Promise<T>;
@@ -40,6 +49,7 @@ export type OpenClawBridgeClient = {
   joinRoom<T>(input: BridgeJoinRoomInput): Promise<T>;
   sendMessage<T>(input: BridgeSendMessageInput): Promise<T>;
   pullEvents<T>(input: BridgePullEventsInput): Promise<T>;
+  uploadFile<T>(input: BridgeUploadFileInput): Promise<T>;
 };
 
 type Logger = Pick<typeof console, "log" | "error">;
@@ -72,6 +82,12 @@ type PullEventsOptions = SessionFileOptions & {
   roomId?: string;
   afterEventId?: string;
   limit?: number;
+};
+
+type SendAttachmentOptions = SessionFileOptions & {
+  filePath: string;
+  caption?: string;
+  mimeType?: string;
 };
 
 export type RunningOpenClawBridgeSession = {
@@ -231,6 +247,49 @@ export async function pullOpenClawBridgeEvents<T = unknown>(
     afterEventId: options.afterEventId,
     limit: options.limit
   });
+}
+
+function formatAttachmentMessage(options: {
+  caption?: string;
+  originalName: string;
+  url: string;
+}): string {
+  const prefix = options.caption?.trim() ? options.caption.trim() : `[附件] ${options.originalName}`;
+  return `${prefix}\n${options.url}`;
+}
+
+export async function sendOpenClawBridgeAttachment<
+  TUpload extends { attachment: { url: string }; originalName: string } = {
+    attachment: { url: string };
+    originalName: string;
+  }
+>(options: SendAttachmentOptions): Promise<TUpload> {
+  const session = readOpenClawBridgeSessionFile(options.sessionFilePath);
+  const client = resolveClient({
+    client: options.client,
+    baseUrl: session.baseUrl,
+    token: session.token
+  });
+
+  const content = readFileSync(options.filePath);
+  const uploaded = await client.uploadFile<TUpload>({
+    fileName: basename(options.filePath),
+    mimeType: options.mimeType,
+    content
+  });
+
+  await client.sendMessage({
+    sessionId: session.sessionId,
+    agentId: session.agentId,
+    roomId: session.roomId,
+    body: formatAttachmentMessage({
+      caption: options.caption,
+      originalName: uploaded.originalName,
+      url: uploaded.attachment.url
+    })
+  });
+
+  return uploaded;
 }
 
 export async function stopOpenClawBridgeSession<T = unknown>(

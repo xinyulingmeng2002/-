@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  sendCodexBridgeAttachment,
   pullCodexBridgeEvents,
   runCodexBridgeSession,
   sendCodexBridgeMessage,
@@ -45,7 +46,8 @@ describe("codex bridge runtime", () => {
       heartbeat: vi.fn().mockResolvedValue({ id: "session-1", status: "connected" }),
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
       sendMessage: vi.fn(),
-      pullEvents: vi.fn()
+      pullEvents: vi.fn(),
+      uploadFile: vi.fn()
     } as const;
 
     try {
@@ -101,7 +103,8 @@ describe("codex bridge runtime", () => {
       heartbeat: vi.fn(),
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
       sendMessage: vi.fn(),
-      pullEvents: vi.fn()
+      pullEvents: vi.fn(),
+      uploadFile: vi.fn()
     } as const;
 
     try {
@@ -139,7 +142,8 @@ describe("codex bridge runtime", () => {
       heartbeat: vi.fn().mockResolvedValue({ id: "session-1", status: "connected" }),
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
       sendMessage: vi.fn(),
-      pullEvents: vi.fn()
+      pullEvents: vi.fn(),
+      uploadFile: vi.fn()
     } as const;
 
     try {
@@ -216,6 +220,76 @@ describe("codex bridge runtime", () => {
     }
   });
 
+  it("uploads a local file and sends its link into the room", async () => {
+    const tempDir = createTempDir("ma-codex-bridge-");
+    const sessionFilePath = join(tempDir, "codex-session.json");
+    const filePath = join(tempDir, "diagram.png");
+    const client = {
+      uploadFile: vi.fn().mockResolvedValue({
+        attachment: {
+          id: "att-1",
+          messageId: "",
+          kind: "image",
+          url: "http://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png"
+        },
+        originalName: "diagram.png",
+        mimeType: "image/png",
+        sizeBytes: 4
+      }),
+      sendMessage: vi.fn().mockResolvedValue({
+        kind: "message.created",
+        roomId: "room-1"
+      })
+    };
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        displayName: "Codex",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+      writeFileSync(filePath, Buffer.from([1, 2, 3, 4]));
+
+      const result = await sendCodexBridgeAttachment({
+        client: client as never,
+        sessionFilePath,
+        filePath,
+        caption: "看这个"
+      });
+
+      expect(client.uploadFile).toHaveBeenCalledWith({
+        fileName: "diagram.png",
+        mimeType: undefined,
+        content: expect.any(Uint8Array)
+      });
+      expect(client.sendMessage).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        roomId: "room-1",
+        body: "看这个\nhttp://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png"
+      });
+      expect(result).toEqual({
+        attachment: {
+          id: "att-1",
+          messageId: "",
+          kind: "image",
+          url: "http://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png"
+        },
+        originalName: "diagram.png",
+        mimeType: "image/png",
+        sizeBytes: 4
+      });
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("reads the persisted session file and pulls room events", async () => {
     const tempDir = createTempDir("ma-codex-bridge-");
     const sessionFilePath = join(tempDir, "codex-session.json");
@@ -271,7 +345,8 @@ describe("codex bridge runtime", () => {
       heartbeat: vi.fn().mockResolvedValue({ id: "session-1", status: "connected" }),
       disconnect: vi.fn().mockRejectedValue(new Error("disconnect failed")),
       sendMessage: vi.fn(),
-      pullEvents: vi.fn()
+      pullEvents: vi.fn(),
+      uploadFile: vi.fn()
     } as const;
 
     try {

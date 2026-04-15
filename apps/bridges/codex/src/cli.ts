@@ -5,6 +5,7 @@ import { formatCodexBridgeUsage, parseCodexBridgeCliArgs } from "./config";
 import {
   pullCodexBridgeEvents,
   runCodexBridgeSession,
+  sendCodexBridgeAttachment,
   sendCodexBridgeMessage,
   stopCodexBridgeSession
 } from "./runtime";
@@ -84,6 +85,12 @@ export async function runCodexBridgeCli(argv = process.argv.slice(2)): Promise<v
   if (parsed.kind === "events.pull") {
     const events = await pullCodexBridgeEvents(parsed.options);
     console.log(JSON.stringify(events, null, 2));
+    return;
+  }
+
+  if (parsed.kind === "attachment.send") {
+    const uploaded = await sendCodexBridgeAttachment(parsed.options);
+    console.log(JSON.stringify(uploaded, null, 2));
     return;
   }
 
