@@ -1,57 +1,49 @@
 import { describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 
 import { buildServer } from "../src/app";
-import { createEventLogStore } from "../src/domain/messages/event-log-store";
+import type { RoomEventRecord } from "../src/domain/messages/event-log-store";
 import { MessageService } from "../src/domain/messages/message-service";
-import { createWorkMemoryStore } from "../src/domain/memory/work-memory-store";
+import type { WorkMemoryRecord } from "../src/domain/memory/work-memory-store";
 import { cleanupTempDir, createTempDir } from "./helpers";
-
-function readRoomEvents(dataDir: string, roomId: string) {
-  const logPath = join(dataDir, "data", "logs", "rooms", `${roomId}.jsonl`);
-  if (!existsSync(logPath)) {
-    return [];
-  }
-
-  const lines = readFileSync(logPath, "utf8")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  return lines.map((line) => JSON.parse(line) as Record<string, unknown>);
-}
 
 describe("message service", () => {
   it("stores each message in the room event log before updating work memory", async () => {
-    const tempDir = createTempDir();
-    const roomId = "room-1";
-    const workMemoryPath = join(tempDir, "data", "db", "work-memory.json");
-    const logPath = join(tempDir, "data", "logs", "rooms", `${roomId}.jsonl`);
-    mkdirSync(join(tempDir, "data", "logs", "rooms"), { recursive: true });
-    writeFileSync(logPath, "", "utf8");
+    const calls: string[] = [];
+    const events: RoomEventRecord[] = [];
+    const memoryByRoom: Record<string, WorkMemoryRecord> = {};
 
     const service = new MessageService({
-      eventLogStore: createEventLogStore(tempDir),
-      workMemoryStore: createWorkMemoryStore(tempDir),
+      eventLogStore: {
+        append(event) {
+          calls.push("eventLog.append");
+          events.push(event);
+        },
+        list() {
+          return events;
+        }
+      },
+      workMemoryStore: {
+        get(roomId) {
+          calls.push("workMemory.get");
+          return memoryByRoom[roomId];
+        },
+        set(roomId, memory) {
+          calls.push("workMemory.set");
+          memoryByRoom[roomId] = memory;
+        }
+      },
       now: () => new Date("2026-04-15T12:00:00.000Z")
     });
 
-    try {
-      await service.appendChatMessage({
-        roomId,
-        speakerParticipantId: "human-1",
-        body: "今天先把房间打通"
-      });
+    await service.appendChatMessage({
+      roomId: "room-1",
+      speakerParticipantId: "human-1",
+      body: "今天先把房间打通"
+    });
 
-      expect(readRoomEvents(tempDir, roomId)).toHaveLength(1);
-      expect(existsSync(workMemoryPath)).toBe(true);
-      expect(readRoomEvents(tempDir, roomId)[0]?.kind).toBe("message.created");
-      expect(createWorkMemoryStore(tempDir).get(roomId)?.recentMessages[0]?.body).toBe(
-        "今天先把房间打通"
-      );
-    } finally {
-      cleanupTempDir(tempDir);
-    }
+    expect(calls).toEqual(["eventLog.append", "workMemory.get", "workMemory.set"]);
+    expect(events).toHaveLength(1);
+    expect(memoryByRoom["room-1"]?.recentMessages[0]?.body).toBe("今天先把房间打通");
   });
 });
 
