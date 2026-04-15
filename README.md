@@ -81,6 +81,7 @@ npm run typecheck
 ```bash
 npm --workspace @ma/server test
 npm --workspace @ma/web test
+npm --workspace @ma/bridge-codex test
 npm --workspace @ma/bridge-shared test
 npm --workspace @ma/protocol test
 npm --workspace @ma/web run build
@@ -91,8 +92,10 @@ npm --workspace @ma/web run build
 ```bash
 npm run dev:server
 npm run dev:web
+npm --workspace @ma/bridge-codex run dev -- session start --room-id room-1
 npm --workspace @ma/server run typecheck
 npm --workspace @ma/web run typecheck
+npm --workspace @ma/bridge-codex run typecheck
 npm --workspace @ma/bridge-shared run typecheck
 ```
 

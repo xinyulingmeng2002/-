@@ -2,6 +2,12 @@
 
 `apps/bridges/codex` 保留为 Codex 运行时接入平台 bridge gateway 的适配器壳。实际 HTTP 调用由 `@ma/bridge-shared` 提供。
 
+当前已经补成可实际运行的最小 CLI 适配器，入口是：
+
+```bash
+npm --workspace @ma/bridge-codex run dev -- <command>
+```
+
 ## Required Config
 
 - `token`: 通过 `POST /api/bridge-tokens` 创建，`bridgeKind` 必须是 `codex`
@@ -15,6 +21,65 @@ const client = createBridgeClient({
   token: process.env.MA_BRIDGE_TOKEN as string
 });
 ```
+
+也可以直接走环境变量：
+
+```bash
+export MA_BRIDGE_BASE_URL=http://127.0.0.1:3000
+export MA_BRIDGE_TOKEN=<your-token>
+export MA_BRIDGE_AGENT_ID=agent-codex-main
+export MA_BRIDGE_DISPLAY_NAME=Codex
+export MA_BRIDGE_ROOM_ID=room-1
+export MA_BRIDGE_CAPABILITIES=chat,code
+```
+
+## Runnable Commands
+
+启动并保活 session：
+
+```bash
+npm --workspace @ma/bridge-codex run dev -- session start --room-id room-1
+```
+
+显式指定所有参数：
+
+```bash
+npm --workspace @ma/bridge-codex run dev -- \
+  session start \
+  --base-url http://127.0.0.1:3000 \
+  --token <your-token> \
+  --agent-id agent-codex-main \
+  --display-name Codex \
+  --room-id room-1 \
+  --capabilities chat,code \
+  --heartbeat-ms 30000
+```
+
+发送消息：
+
+```bash
+npm --workspace @ma/bridge-codex run dev -- message send --body "Codex 已接入房间"
+```
+
+也支持 stdin：
+
+```bash
+printf '这是从 stdin 进入平台的消息\n' | npm --workspace @ma/bridge-codex run dev -- message send
+```
+
+停止 session：
+
+```bash
+npm --workspace @ma/bridge-codex run dev -- session stop
+```
+
+默认 session 文件位置：
+
+```text
+data/bridges/codex/session.json
+```
+
+可通过 `MA_BRIDGE_SESSION_FILE` 或 `--session-file` 覆盖。
 
 ## Join Room Flow
 
