@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { appendFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { buildServer } from "../src/app";
-import type { RoomEventRecord } from "../src/domain/messages/event-log-store";
+import { createEventLogStore, type RoomEventRecord } from "../src/domain/messages/event-log-store";
 import { MessageService } from "../src/domain/messages/message-service";
 import type { WorkMemoryRecord } from "../src/domain/memory/work-memory-store";
 import { cleanupTempDir, createTempDir } from "./helpers";
@@ -86,6 +88,54 @@ describe("messages api", () => {
       );
     } finally {
       await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("rejects unsafe roomId in create message request", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        payload: {
+          roomId: "../escape",
+          speakerParticipantId: "human-1",
+          body: "bad room id"
+        }
+      });
+
+      expect(created.statusCode).toBe(400);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+});
+
+describe("event log store", () => {
+  it("keeps readable events when the final jsonl line is truncated", () => {
+    const tempDir = createTempDir();
+    const store = createEventLogStore(tempDir);
+    const roomId = "room_1";
+    const logPath = join(tempDir, "data", "logs", "rooms", `${roomId}.jsonl`);
+
+    try {
+      store.append({
+        eventId: "evt_1",
+        kind: "message.created",
+        roomId,
+        timestamp: "2026-04-15T12:00:00.000Z",
+        payload: { body: "ok" }
+      });
+      appendFileSync(logPath, "{\"eventId\":\"evt_2\"", "utf8");
+
+      const listed = store.list(roomId);
+      expect(listed).toHaveLength(1);
+      expect(listed[0]?.eventId).toBe("evt_1");
+    } finally {
       cleanupTempDir(tempDir);
     }
   });
