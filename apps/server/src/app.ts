@@ -2,6 +2,7 @@ import Fastify from "fastify";
 
 import { createRoomStore } from "./domain/rooms/room-store";
 import { createSpaceStore } from "./domain/spaces/space-store";
+import { registerRoomRealtimeGateway } from "./realtime/socket";
 import { healthRoutes } from "./routes/health";
 import { roomsRoutes } from "./routes/rooms";
 import { spacesRoutes } from "./routes/spaces";
@@ -18,6 +19,7 @@ export function buildServer(options: BuildServerOptions = {}) {
   app.register(healthRoutes);
   app.register(spacesRoutes, { spaceStore });
   app.register(roomsRoutes, { roomStore });
+  registerRoomRealtimeGateway(app);
 
   return app;
 }
