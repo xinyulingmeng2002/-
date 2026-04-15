@@ -61,6 +61,8 @@ npm --workspace @ma/bridge-openclaw run dev -- \
 npm --workspace @ma/bridge-openclaw run dev -- message send --body "OpenClaw 已接入房间"
 ```
 
+`message send` 依赖已存在的 session 文件，所以需要先成功执行一次 `session start`。
+
 也支持 stdin：
 
 ```bash
@@ -73,13 +75,15 @@ printf '这是从 stdin 进入平台的消息\n' | npm --workspace @ma/bridge-op
 npm --workspace @ma/bridge-openclaw run dev -- session stop
 ```
 
+`session stop` 同样读取已保存的 session 文件；如果想换位置，启动和停止时要使用同一个 `MA_BRIDGE_SESSION_FILE` 或 `--session-file`。
+
 默认 session 文件位置：
 
 ```text
 data/bridges/openclaw/session.json
 ```
 
-可通过 `MA_BRIDGE_SESSION_FILE` 或 `--session-file` 覆盖。
+该文件包含临时 token 与 session 元数据，默认已被仓库 `.gitignore` 忽略。可通过 `MA_BRIDGE_SESSION_FILE` 或 `--session-file` 覆盖。
 
 ## Join Room Flow
 

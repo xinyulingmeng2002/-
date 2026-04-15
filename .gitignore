@@ -1,4 +1,5 @@
 # Runtime data
+data/bridges/
 data/db/
 data/logs/
 data/uploads/

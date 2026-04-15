@@ -92,6 +92,17 @@ function requireSessionId(response: unknown): string {
   return sessionId;
 }
 
+async function disconnectCodexBridgeSession(
+  client: CodexBridgeClient,
+  sessionId: string,
+  agentId: string
+): Promise<void> {
+  await client.disconnect({
+    sessionId,
+    agentId
+  });
+}
+
 export async function runCodexBridgeSession(
   options: StartSessionOptions
 ): Promise<RunningCodexBridgeSession> {
@@ -112,13 +123,23 @@ export async function runCodexBridgeSession(
   });
   const sessionId = requireSessionId(connected);
 
-  await client.joinRoom({
-    sessionId,
-    agentId: options.agentId,
-    roomId: options.roomId,
-    displayName,
-    capabilities
-  });
+  try {
+    await client.joinRoom({
+      sessionId,
+      agentId: options.agentId,
+      roomId: options.roomId,
+      displayName,
+      capabilities
+    });
+  } catch (error) {
+    try {
+      await disconnectCodexBridgeSession(client, sessionId, options.agentId);
+    } catch (disconnectError) {
+      logger.error(disconnectError);
+    }
+
+    throw error;
+  }
 
   const session: CodexBridgeSessionRecord = {
     baseUrl: options.baseUrl,
@@ -155,14 +176,8 @@ export async function runCodexBridgeSession(
       shuttingDown = true;
       clearIntervalFn(intervalHandle);
 
-      try {
-        await client.disconnect({
-          sessionId,
-          agentId: options.agentId
-        });
-      } finally {
-        removeCodexBridgeSessionFile(options.sessionFilePath);
-      }
+      await disconnectCodexBridgeSession(client, sessionId, options.agentId);
+      removeCodexBridgeSessionFile(options.sessionFilePath);
     }
   };
 }
@@ -195,12 +210,10 @@ export async function stopCodexBridgeSession<T = unknown>(
     token: session.token
   });
 
-  try {
-    return await client.disconnect<T>({
-      sessionId: session.sessionId,
-      agentId: session.agentId
-    });
-  } finally {
-    removeCodexBridgeSessionFile(options.sessionFilePath);
-  }
+  const result = await client.disconnect<T>({
+    sessionId: session.sessionId,
+    agentId: session.agentId
+  });
+  removeCodexBridgeSessionFile(options.sessionFilePath);
+  return result;
 }

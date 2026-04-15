@@ -61,6 +61,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 当前摘要层是轻量骨架，不做 L2/L3 记忆，只在每 2 条新消息后落 1 次快照。
 
 - API：`GET /api/room-summaries?roomId=<roomId>`
+- bridge session：`data/bridges/<bridge-kind>/session.json`
 - 存储：`data/db/room-summaries.json`
 - 工作记忆：`data/db/work-memory.json`
 - 事件日志：`data/logs/rooms/<roomId>.jsonl`
@@ -108,6 +109,7 @@ npm --workspace @ma/bridge-shared run typecheck
 
 运行时数据默认写入仓库根下的 `data/`，并已加入 `.gitignore`：
 
+- `data/bridges/`：bridge session 文件，包含临时 token 与 session 上下文
 - `data/db/`：文件型快照存储
 - `data/logs/`：房间事件日志 JSONL
 - `data/uploads/`：上传文件落盘目录

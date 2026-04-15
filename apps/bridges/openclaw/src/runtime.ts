@@ -92,6 +92,17 @@ function requireSessionId(response: unknown): string {
   return sessionId;
 }
 
+async function disconnectOpenClawBridgeSession(
+  client: OpenClawBridgeClient,
+  sessionId: string,
+  agentId: string
+): Promise<void> {
+  await client.disconnect({
+    sessionId,
+    agentId
+  });
+}
+
 export async function runOpenClawBridgeSession(
   options: StartSessionOptions
 ): Promise<RunningOpenClawBridgeSession> {
@@ -112,13 +123,23 @@ export async function runOpenClawBridgeSession(
   });
   const sessionId = requireSessionId(connected);
 
-  await client.joinRoom({
-    sessionId,
-    agentId: options.agentId,
-    roomId: options.roomId,
-    displayName,
-    capabilities
-  });
+  try {
+    await client.joinRoom({
+      sessionId,
+      agentId: options.agentId,
+      roomId: options.roomId,
+      displayName,
+      capabilities
+    });
+  } catch (error) {
+    try {
+      await disconnectOpenClawBridgeSession(client, sessionId, options.agentId);
+    } catch (disconnectError) {
+      logger.error(disconnectError);
+    }
+
+    throw error;
+  }
 
   const session: OpenClawBridgeSessionRecord = {
     baseUrl: options.baseUrl,
@@ -157,14 +178,8 @@ export async function runOpenClawBridgeSession(
       shuttingDown = true;
       clearIntervalFn(intervalHandle);
 
-      try {
-        await client.disconnect({
-          sessionId,
-          agentId: options.agentId
-        });
-      } finally {
-        removeOpenClawBridgeSessionFile(options.sessionFilePath);
-      }
+      await disconnectOpenClawBridgeSession(client, sessionId, options.agentId);
+      removeOpenClawBridgeSessionFile(options.sessionFilePath);
     }
   };
 }
@@ -197,12 +212,10 @@ export async function stopOpenClawBridgeSession<T = unknown>(
     token: session.token
   });
 
-  try {
-    return await client.disconnect<T>({
-      sessionId: session.sessionId,
-      agentId: session.agentId
-    });
-  } finally {
-    removeOpenClawBridgeSessionFile(options.sessionFilePath);
-  }
+  const result = await client.disconnect<T>({
+    sessionId: session.sessionId,
+    agentId: session.agentId
+  });
+  removeOpenClawBridgeSessionFile(options.sessionFilePath);
+  return result;
 }
