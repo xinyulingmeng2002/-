@@ -29,7 +29,8 @@ describe("bridge protocol schemas", () => {
         status: "connected",
         activeRoomIds: ["room-1"],
         connectedAt: "2026-04-15T00:00:00.000Z",
-        lastSeenAt: "2026-04-15T00:01:00.000Z"
+        lastSeenAt: "2026-04-15T00:01:00.000Z",
+        expiresAt: "2026-04-15T00:02:00.000Z"
       }),
     ).toEqual({
       id: "s1",
@@ -38,7 +39,8 @@ describe("bridge protocol schemas", () => {
       status: "connected",
       activeRoomIds: ["room-1"],
       connectedAt: "2026-04-15T00:00:00.000Z",
-      lastSeenAt: "2026-04-15T00:01:00.000Z"
+      lastSeenAt: "2026-04-15T00:01:00.000Z",
+      expiresAt: "2026-04-15T00:02:00.000Z"
     });
   });
 
@@ -67,7 +69,8 @@ describe("bridge protocol schemas", () => {
         status: "stale",
         activeRoomIds: ["room-1"],
         connectedAt: "2026-04-15T00:00:00.000Z",
-        lastSeenAt: "2026-04-15T00:00:00.000Z"
+        lastSeenAt: "2026-04-15T00:00:00.000Z",
+        expiresAt: "2026-04-15T00:01:00.000Z"
       }),
     ).toThrow();
   });
@@ -94,6 +97,7 @@ describe("bridge protocol schemas", () => {
         activeRoomIds: ["room-1"],
         connectedAt: "2026-04-15T00:00:00.000Z",
         lastSeenAt: "2026-04-15T00:00:00.000Z",
+        expiresAt: "2026-04-15T00:01:00.000Z",
         extra: true
       }),
     ).toThrow();

@@ -16,7 +16,8 @@ export const bridgeSessionSchema = z.object({
   status: z.enum(["connected", "disconnected"]),
   activeRoomIds: z.array(z.string()),
   connectedAt: z.string(),
-  lastSeenAt: z.string()
+  lastSeenAt: z.string(),
+  expiresAt: z.string()
 }).strict();
 
 export type BridgeToken = z.infer<typeof bridgeTokenSchema>;
