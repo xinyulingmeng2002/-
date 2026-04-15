@@ -12,6 +12,7 @@ import { createParticipantStore } from "./domain/participants/participant-store"
 import { createRoomStore } from "./domain/rooms/room-store";
 import { createSpaceStore } from "./domain/spaces/space-store";
 import { registerRoomRealtimeGateway } from "./realtime/socket";
+import { bridgeEgressRoutes } from "./routes/bridge-egress";
 import { bridgeIngressRoutes } from "./routes/bridge-ingress";
 import { bridgeSessionsRoutes } from "./routes/bridge-sessions";
 import { bridgeTokensRoutes } from "./routes/bridge-tokens";
@@ -56,6 +57,7 @@ export function buildServer(options: BuildServerOptions = {}) {
   app.register(participantsRoutes, { participantStore });
   app.register(bridgeTokensRoutes, { bridgeTokenStore });
   app.register(bridgeSessionsRoutes, { bridgeSessionStore, now });
+  app.register(bridgeEgressRoutes, { bridgeService });
   app.register(bridgeIngressRoutes, { bridgeService });
   app.register(messagesRoutes, { messageService });
   app.register(roomSummariesRoutes, { roomSummaryStore });

@@ -103,6 +103,29 @@ export class MessageService {
     return this.eventLogStore.list(roomId);
   }
 
+  listRoomEventsAfter(
+    roomId: string,
+    options: {
+      afterEventId?: string;
+      limit?: number;
+    } = {}
+  ): RoomEventRecord[] {
+    const events = this.eventLogStore.list(roomId);
+    const fallbackLimit = events.length > 0 ? events.length : 1;
+    const limit = Math.max(1, options.limit ?? fallbackLimit);
+
+    if (options.afterEventId) {
+      const index = events.findIndex((event) => event.eventId === options.afterEventId);
+      if (index < 0) {
+        return [];
+      }
+
+      return events.slice(index + 1, index + 1 + limit);
+    }
+
+    return events.length > limit ? events.slice(-limit) : events;
+  }
+
   listRoomMessages(roomId: string): WorkMemoryMessage[] {
     return [...(this.workMemoryStore.get(roomId)?.recentMessages ?? [])];
   }

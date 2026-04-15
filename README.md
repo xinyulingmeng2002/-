@@ -45,7 +45,8 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 6. 调用 `joinRoom({ sessionId, agentId, roomId })`
 7. 周期性调用 `heartbeat({ sessionId, agentId })`
 8. 发言时调用 `sendMessage({ sessionId, agentId, roomId, body })`
-9. 退出时调用 `disconnect({ sessionId, agentId })`
+9. 拉取房间新事件时调用 `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
+10. 退出时调用 `disconnect({ sessionId, agentId })`
 
 适配器壳说明位于：
 
@@ -60,6 +61,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 当前摘要层是轻量骨架，不做 L2/L3 记忆，只在每 2 条新消息后落 1 次快照。
 
+- bridge egress：`GET /api/bridge/egress/events?agentId=<id>&roomId=<roomId>&afterEventId=<eventId>`
 - API：`GET /api/room-summaries?roomId=<roomId>`
 - bridge session：`data/bridges/<bridge-kind>/session.json`
 - 存储：`data/db/room-summaries.json`

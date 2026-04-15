@@ -56,6 +56,20 @@ describe("bridge client", () => {
             "content-type": "application/json"
           }
         })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+            nextCursor: "evt-2"
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json"
+            }
+          }
+        )
       );
 
     const client = createBridgeClient({
@@ -88,14 +102,25 @@ describe("bridge client", () => {
       roomId: "room-1",
       body: "Bridge ingress message"
     });
+    const pulled = await client.pullEvents({
+      sessionId: "session-1",
+      agentId: "agent-codex",
+      roomId: "room-1",
+      afterEventId: "evt-1",
+      limit: 20
+    });
 
     expect(connected).toEqual({ session: { id: "session-1" } });
     expect(heartbeat).toEqual({ id: "session-1", status: "connected" });
     expect(disconnected).toEqual({ id: "session-1", status: "disconnected" });
     expect(joined).toEqual({ id: "session-1", activeRoomIds: ["room-1"] });
     expect(sent).toEqual({ kind: "message.created", roomId: "room-1" });
+    expect(pulled).toEqual({
+      items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+      nextCursor: "evt-2"
+    });
 
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(6);
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       "http://127.0.0.1:3000/api/bridge/ingress/connect",
@@ -173,6 +198,16 @@ describe("bridge client", () => {
           roomId: "room-1",
           body: "Bridge ingress message"
         })
+      })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      6,
+      "http://127.0.0.1:3000/api/bridge/egress/events?agentId=agent-codex&sessionId=session-1&roomId=room-1&afterEventId=evt-1&limit=20",
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          authorization: "Bearer secret"
+        }
       })
     );
   });

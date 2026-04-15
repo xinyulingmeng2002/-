@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  pullOpenClawBridgeEvents,
   runOpenClawBridgeSession,
   sendOpenClawBridgeMessage,
   stopOpenClawBridgeSession
@@ -43,7 +44,8 @@ describe("openclaw bridge runtime", () => {
       }),
       heartbeat: vi.fn().mockResolvedValue({ id: "session-1", status: "connected" }),
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
-      sendMessage: vi.fn()
+      sendMessage: vi.fn(),
+      pullEvents: vi.fn()
     } as const;
 
     try {
@@ -98,7 +100,8 @@ describe("openclaw bridge runtime", () => {
       joinRoom: vi.fn().mockRejectedValue(new Error("join failed")),
       heartbeat: vi.fn(),
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
-      sendMessage: vi.fn()
+      sendMessage: vi.fn(),
+      pullEvents: vi.fn()
     } as const;
 
     try {
@@ -135,7 +138,8 @@ describe("openclaw bridge runtime", () => {
       joinRoom: vi.fn().mockResolvedValue({ id: "session-1", activeRoomIds: ["room-1"] }),
       heartbeat: vi.fn().mockResolvedValue({ id: "session-1", status: "connected" }),
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
-      sendMessage: vi.fn()
+      sendMessage: vi.fn(),
+      pullEvents: vi.fn()
     } as const;
 
     try {
@@ -212,6 +216,52 @@ describe("openclaw bridge runtime", () => {
     }
   });
 
+  it("reads the persisted session file and pulls room events", async () => {
+    const tempDir = createTempDir("ma-openclaw-bridge-");
+    const sessionFilePath = join(tempDir, "openclaw-session.json");
+    const client = {
+      pullEvents: vi.fn().mockResolvedValue({
+        items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+        nextCursor: "evt-2"
+      })
+    };
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      const pulled = await pullOpenClawBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        afterEventId: "evt-1",
+        limit: 20
+      });
+
+      expect(client.pullEvents).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        roomId: "room-1",
+        afterEventId: "evt-1",
+        limit: 20
+      });
+      expect(pulled).toEqual({
+        items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+        nextCursor: "evt-2"
+      });
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("keeps the session file when live shutdown disconnect fails", async () => {
     const tempDir = createTempDir("ma-openclaw-bridge-");
     const sessionFilePath = join(tempDir, "openclaw-session.json");
@@ -220,7 +270,8 @@ describe("openclaw bridge runtime", () => {
       joinRoom: vi.fn().mockResolvedValue({ id: "session-1", activeRoomIds: ["room-1"] }),
       heartbeat: vi.fn().mockResolvedValue({ id: "session-1", status: "connected" }),
       disconnect: vi.fn().mockRejectedValue(new Error("disconnect failed")),
-      sendMessage: vi.fn()
+      sendMessage: vi.fn(),
+      pullEvents: vi.fn()
     } as const;
 
     try {

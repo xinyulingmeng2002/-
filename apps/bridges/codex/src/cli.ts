@@ -2,7 +2,12 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { formatCodexBridgeUsage, parseCodexBridgeCliArgs } from "./config";
-import { runCodexBridgeSession, sendCodexBridgeMessage, stopCodexBridgeSession } from "./runtime";
+import {
+  pullCodexBridgeEvents,
+  runCodexBridgeSession,
+  sendCodexBridgeMessage,
+  stopCodexBridgeSession
+} from "./runtime";
 
 async function readStdinBody(): Promise<string> {
   if (process.stdin.isTTY) {
@@ -73,6 +78,12 @@ export async function runCodexBridgeCli(argv = process.argv.slice(2)): Promise<v
       body
     });
     console.log("codex bridge message sent");
+    return;
+  }
+
+  if (parsed.kind === "events.pull") {
+    const events = await pullCodexBridgeEvents(parsed.options);
+    console.log(JSON.stringify(events, null, 2));
     return;
   }
 

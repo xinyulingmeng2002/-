@@ -30,6 +30,15 @@ export type OpenClawBridgeCliCommand =
         sessionFilePath: string;
         body?: string;
       };
+    }
+  | {
+      kind: "events.pull";
+      options: {
+        sessionFilePath: string;
+        roomId?: string;
+        afterEventId?: string;
+        limit?: number;
+      };
     };
 
 const DEFAULT_HEARTBEAT_MS = 45_000;
@@ -131,6 +140,20 @@ export function parseOpenClawBridgeCliArgs(
     };
   }
 
+  if (commandKey === "events.pull") {
+    const limitValue = flags.limit ? Number.parseInt(flags.limit, 10) : undefined;
+
+    return {
+      kind: "events.pull",
+      options: {
+        sessionFilePath,
+        roomId: flags["room-id"],
+        afterEventId: flags["after-event-id"],
+        limit: Number.isFinite(limitValue) && limitValue && limitValue > 0 ? limitValue : undefined
+      }
+    };
+  }
+
   throw new Error(`openclaw_bridge_unknown_command:${commandKey || "empty"}`);
 }
 
@@ -139,6 +162,7 @@ export function formatOpenClawBridgeUsage(): string {
     "Usage:",
     "  npm --workspace @ma/bridge-openclaw run dev -- session start --base-url <url> --token <token> --agent-id <id> --room-id <room>",
     "  npm --workspace @ma/bridge-openclaw run dev -- message send --body <text>",
+    "  npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id <event-id>",
     "  npm --workspace @ma/bridge-openclaw run dev -- session stop",
     "",
     "Environment fallbacks:",

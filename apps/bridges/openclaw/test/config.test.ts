@@ -50,4 +50,24 @@ describe("openclaw bridge config", () => {
       })
     });
   });
+
+  it("parses events pull arguments", () => {
+    const parsed = parseOpenClawBridgeCliArgs(
+      ["events", "pull", "--after-event-id", "evt-1", "--limit", "25"],
+      {
+        MA_BRIDGE_SESSION_FILE: "/tmp/openclaw-session.json"
+      },
+      "/workspace"
+    );
+
+    expect(parsed).toEqual({
+      kind: "events.pull",
+      options: {
+        sessionFilePath: "/tmp/openclaw-session.json",
+        afterEventId: "evt-1",
+        limit: 25,
+        roomId: undefined
+      }
+    });
+  });
 });

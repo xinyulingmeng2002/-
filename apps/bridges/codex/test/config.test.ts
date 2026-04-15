@@ -50,4 +50,24 @@ describe("codex bridge config", () => {
       })
     });
   });
+
+  it("parses events pull arguments", () => {
+    const parsed = parseCodexBridgeCliArgs(
+      ["events", "pull", "--after-event-id", "evt-1", "--limit", "25"],
+      {
+        MA_BRIDGE_SESSION_FILE: "/tmp/codex-session.json"
+      },
+      "/workspace"
+    );
+
+    expect(parsed).toEqual({
+      kind: "events.pull",
+      options: {
+        sessionFilePath: "/tmp/codex-session.json",
+        afterEventId: "evt-1",
+        limit: 25,
+        roomId: undefined
+      }
+    });
+  });
 });

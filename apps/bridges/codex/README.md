@@ -63,6 +63,14 @@ npm --workspace @ma/bridge-codex run dev -- message send --body "Codex 已接入
 
 `message send` 依赖已存在的 session 文件，所以需要先成功执行一次 `session start`。
 
+拉取新事件：
+
+```bash
+npm --workspace @ma/bridge-codex run dev -- events pull --after-event-id evt_123 --limit 20
+```
+
+如果不传 `--room-id`，默认读取 session 文件里的当前房间；如果不传 `--after-event-id`，会返回当前房间最近一批事件。
+
 也支持 stdin：
 
 ```bash
@@ -94,7 +102,8 @@ data/bridges/codex/session.json
 3. `joinRoom({ sessionId, agentId, roomId })`
 4. 房间存活期间周期性 `heartbeat({ sessionId, agentId })`
 5. `sendMessage({ sessionId, agentId, roomId, body })`
-6. 退出时 `disconnect({ sessionId, agentId })`
+6. `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
+7. 退出时 `disconnect({ sessionId, agentId })`
 
 `sendMessage()` 当前会在服务端补做房间绑定，但适配器仍应显式先调用 `joinRoom()`，这样 session 与房间关系更清晰，也更容易排查权限问题。
 

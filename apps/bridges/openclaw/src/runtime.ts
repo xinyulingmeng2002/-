@@ -28,12 +28,18 @@ type BridgeSendMessageInput = BridgeJoinRoomInput & {
   body: string;
 };
 
+type BridgePullEventsInput = BridgeJoinRoomInput & {
+  afterEventId?: string;
+  limit?: number;
+};
+
 export type OpenClawBridgeClient = {
   connect<T>(input: BridgeConnectInput): Promise<T>;
   heartbeat<T>(input: BridgeSessionInput): Promise<T>;
   disconnect<T>(input: BridgeSessionInput): Promise<T>;
   joinRoom<T>(input: BridgeJoinRoomInput): Promise<T>;
   sendMessage<T>(input: BridgeSendMessageInput): Promise<T>;
+  pullEvents<T>(input: BridgePullEventsInput): Promise<T>;
 };
 
 type Logger = Pick<typeof console, "log" | "error">;
@@ -60,6 +66,12 @@ type SessionFileOptions = {
 
 type SendMessageOptions = SessionFileOptions & {
   body: string;
+};
+
+type PullEventsOptions = SessionFileOptions & {
+  roomId?: string;
+  afterEventId?: string;
+  limit?: number;
 };
 
 export type RunningOpenClawBridgeSession = {
@@ -199,6 +211,25 @@ export async function sendOpenClawBridgeMessage<T = unknown>(
     agentId: session.agentId,
     roomId: session.roomId,
     body: options.body
+  });
+}
+
+export async function pullOpenClawBridgeEvents<T = unknown>(
+  options: PullEventsOptions
+): Promise<T> {
+  const session = readOpenClawBridgeSessionFile(options.sessionFilePath);
+  const client = resolveClient({
+    client: options.client,
+    baseUrl: session.baseUrl,
+    token: session.token
+  });
+
+  return client.pullEvents<T>({
+    sessionId: session.sessionId,
+    agentId: session.agentId,
+    roomId: options.roomId ?? session.roomId,
+    afterEventId: options.afterEventId,
+    limit: options.limit
   });
 }
 

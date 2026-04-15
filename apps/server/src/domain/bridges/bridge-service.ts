@@ -38,6 +38,12 @@ type SendMessageInput = JoinRoomInput & {
   body: string;
 };
 
+type PullRoomEventsInput = SessionInput & {
+  roomId: string;
+  afterEventId?: string;
+  limit?: number;
+};
+
 type ActiveBridgeToken = {
   id: string;
   bridgeKind: BridgeKind;
@@ -183,6 +189,48 @@ export class BridgeService {
     }
 
     return this.messageService.listRoomEvents(input.roomId).at(-1) as RoomEventRecord;
+  }
+
+  pullRoomEvents(input: PullRoomEventsInput): { items: RoomEventRecord[]; nextCursor: string | null } {
+    const bridgeToken = this.authenticate(input.token);
+    this.assertRoomAllowed(bridgeToken, input.roomId);
+    const session = this.resolveSession({
+      tokenId: bridgeToken.id,
+      agentId: input.agentId,
+      sessionId: input.sessionId
+    });
+
+    if (!session.activeRoomIds.includes(input.roomId)) {
+      throw new Error("bridge_room_not_joined");
+    }
+
+    const refreshed = this.bridgeSessionStore.heartbeat({
+      id: session.id,
+      lastSeenAt: this.timestamp(),
+      expiresAt: this.expiresAt()
+    });
+
+    if (!refreshed) {
+      throw new Error("bridge_session_not_found");
+    }
+
+    const participant = this.participantStore.get(input.agentId);
+    if (participant) {
+      this.participantStore.upsert({
+        ...participant,
+        lastSeenAt: refreshed.lastSeenAt
+      });
+    }
+
+    const items = this.messageService.listRoomEventsAfter(input.roomId, {
+      afterEventId: input.afterEventId,
+      limit: input.limit
+    });
+
+    return {
+      items,
+      nextCursor: items.at(-1)?.eventId ?? input.afterEventId ?? null
+    };
   }
 
   private authenticate(token: string): ActiveBridgeToken {

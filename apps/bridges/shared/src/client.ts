@@ -26,6 +26,11 @@ type SendMessageInput = JoinRoomInput & {
   body: string;
 };
 
+type PullEventsInput = JoinRoomInput & {
+  afterEventId?: string;
+  limit?: number;
+};
+
 export function createBridgeClient(config: BridgeClientConfig) {
   const baseUrl = normalizeBaseUrl(config.baseUrl);
   const fetchImpl = config.fetch ?? globalThis.fetch;
@@ -42,6 +47,28 @@ export function createBridgeClient(config: BridgeClientConfig) {
         "content-type": "application/json"
       },
       body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`bridge_request_failed:${response.status}`);
+    }
+
+    return (await response.json()) as T;
+  }
+
+  async function get<T>(path: string, params: Record<string, string | number | undefined>): Promise<T> {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined) {
+        continue;
+      }
+
+      search.set(key, String(value));
+    }
+
+    const response = await fetchImpl(resolveBridgeUrl(baseUrl, `${path}?${search.toString()}`), {
+      method: "GET",
+      headers: createTokenHeaders(config.token)
     });
 
     if (!response.ok) {
@@ -70,6 +97,15 @@ export function createBridgeClient(config: BridgeClientConfig) {
     },
     sendMessage<T>(input: SendMessageInput): Promise<T> {
       return post<T>("/api/bridge/ingress/message", input);
+    },
+    pullEvents<T>(input: PullEventsInput): Promise<T> {
+      return get<T>("/api/bridge/egress/events", {
+        agentId: input.agentId,
+        sessionId: input.sessionId,
+        roomId: input.roomId,
+        afterEventId: input.afterEventId,
+        limit: input.limit
+      });
     }
   };
 }

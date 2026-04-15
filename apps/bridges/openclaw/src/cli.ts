@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 
 import { formatOpenClawBridgeUsage, parseOpenClawBridgeCliArgs } from "./config";
 import {
+  pullOpenClawBridgeEvents,
   runOpenClawBridgeSession,
   sendOpenClawBridgeMessage,
   stopOpenClawBridgeSession
@@ -77,6 +78,12 @@ export async function runOpenClawBridgeCli(argv = process.argv.slice(2)): Promis
       body
     });
     console.log("openclaw bridge message sent");
+    return;
+  }
+
+  if (parsed.kind === "events.pull") {
+    const events = await pullOpenClawBridgeEvents(parsed.options);
+    console.log(JSON.stringify(events, null, 2));
     return;
   }
 
