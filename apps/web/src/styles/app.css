@@ -1,0 +1,275 @@
+body {
+  margin: 0;
+  font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(20, 71, 230, 0.16), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(255, 145, 77, 0.18), transparent 32%),
+    linear-gradient(180deg, #eef3ff 0%, #f7f8fc 100%);
+  color: #172033;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 260px;
+  gap: 16px;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.app-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid rgba(23, 32, 51, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 42px rgba(33, 50, 91, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.panel-header {
+  padding: 20px 20px 12px;
+}
+
+.panel-header h1,
+.panel-header h2,
+.panel-header h3,
+.panel-header p {
+  margin: 0;
+}
+
+.panel-eyebrow {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #4b67ad;
+}
+
+.panel-body {
+  padding: 0 20px 20px;
+  color: #52617f;
+}
+
+.panel-body--scroll {
+  overflow: auto;
+}
+
+.panel-body--stack {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-caption {
+  margin-top: 8px;
+  color: #65728d;
+}
+
+.status-banner {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 240, 213, 0.86);
+  color: #8a5a00;
+}
+
+.room-list,
+.participant-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.room-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(75, 103, 173, 0.14);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 255, 0.95));
+  color: #172033;
+  cursor: pointer;
+  text-align: left;
+}
+
+.room-card--active {
+  border-color: rgba(38, 88, 210, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(38, 88, 210, 0.18);
+}
+
+.room-card__name {
+  font-weight: 700;
+}
+
+.room-card__meta {
+  font-size: 12px;
+  color: #6b7792;
+}
+
+.message-list {
+  display: flex;
+  flex: 1;
+  min-height: 240px;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+}
+
+.message-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(242, 246, 255, 0.92);
+}
+
+.message-card--system {
+  background: rgba(255, 245, 226, 0.96);
+}
+
+.message-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #697892;
+  font-size: 13px;
+}
+
+.message-card__body {
+  margin: 0;
+  line-height: 1.6;
+  color: #1d2840;
+  white-space: pre-wrap;
+}
+
+.speaker-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #1a4ad9;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.composer__label {
+  font-size: 13px;
+  color: #52617f;
+}
+
+.composer__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid rgba(75, 103, 173, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #172033;
+  resize: vertical;
+}
+
+.composer__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.primary-button,
+.secondary-button {
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #1b53f0, #ff9a55);
+  color: #fff;
+}
+
+.secondary-button {
+  background: rgba(230, 236, 250, 0.92);
+  color: #1d2840;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.participant-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.participant-group h3 {
+  font-size: 14px;
+  color: #4b67ad;
+}
+
+.participant-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.participant-card--human {
+  background: rgba(222, 235, 255, 0.86);
+}
+
+.participant-card--agent {
+  background: rgba(255, 236, 215, 0.92);
+}
+
+.participant-card span {
+  color: #61708c;
+  font-size: 12px;
+}
+
+.empty-state {
+  margin: 0;
+  color: #6b7792;
+}
+
+.empty-state--timeline {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 160px;
+  text-align: center;
+  border: 1px dashed rgba(75, 103, 173, 0.22);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+@media (max-width: 960px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .composer__actions {
+    flex-direction: column;
+  }
+}
