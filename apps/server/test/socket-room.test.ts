@@ -86,4 +86,49 @@ describe("socket room presence", () => {
       await close();
     }
   });
+
+  it("broadcasts standalone room:presence updates only to room members", async () => {
+    const { close, url } = await startTestServer();
+    const a = io(url, { autoConnect: false, transports: ["websocket"] });
+    const b = io(url, { autoConnect: false, transports: ["websocket"] });
+    const outsider = io(url, { autoConnect: false, transports: ["websocket"] });
+
+    try {
+      await Promise.all([waitForConnect(a), waitForConnect(b), waitForConnect(outsider)]);
+
+      const joined: PresencePayload = {
+        roomId: "room-1",
+        participant: {
+          id: "agent-codex",
+          type: "agent",
+          displayName: "Codex"
+        }
+      };
+
+      a.emit("room:join", joined);
+      b.emit("room:join", joined);
+      await waitForEvent<PresencePayload>(a, "room:presence");
+
+      const updated: PresencePayload = {
+        roomId: "room-1",
+        participant: {
+          id: "agent-codex",
+          type: "agent",
+          displayName: "Codex Updated"
+        }
+      };
+
+      const roomPresencePromise = waitForEvent<PresencePayload>(a, "room:presence");
+      const outsiderNoPresencePromise = expectNoEvent(outsider, "room:presence");
+      b.emit("room:presence", updated);
+
+      await expect(roomPresencePromise).resolves.toEqual(updated);
+      await expect(outsiderNoPresencePromise).resolves.toBeUndefined();
+    } finally {
+      a.disconnect();
+      b.disconnect();
+      outsider.disconnect();
+      await close();
+    }
+  });
 });

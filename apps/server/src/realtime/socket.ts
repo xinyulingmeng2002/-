@@ -59,6 +59,14 @@ export function registerRoomRealtimeGateway(app: FastifyInstance): Server {
       io.to(payload.roomId).emit("room:presence", payload);
     });
 
+    socket.on("room:presence", (payload: unknown) => {
+      if (!isPresencePayload(payload)) {
+        return;
+      }
+
+      io.to(payload.roomId).emit("room:presence", payload);
+    });
+
     socket.on("room:message:new", (payload: unknown) => {
       if (!isMessagePayload(payload)) {
         return;
