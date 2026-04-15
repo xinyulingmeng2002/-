@@ -1,7 +1,7 @@
 {
   "name": "multi-agent-collab-platform",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": ["apps/*", "apps/bridges/*", "packages/*"],
   "scripts": {
     "dev:server": "npm --workspace @ma/server run dev",
     "dev:web": "npm --workspace @ma/web run dev",

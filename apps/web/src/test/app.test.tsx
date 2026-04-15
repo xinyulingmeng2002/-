@@ -38,6 +38,47 @@ vi.mock("../api/client", () => {
     async uploadFile() {
       throw new Error("not implemented in test");
     }
+
+    async listParticipants() {
+      return [];
+    }
+
+    async listBridgeTokens() {
+      return [];
+    }
+
+    async createBridgeToken() {
+      return {
+        token: "secret-token",
+        metadata: {
+          id: "token-1",
+          label: "codex-bridge",
+          bridgeKind: "codex",
+          allowedRoomIds: ["room-1"],
+          createdAt: "2026-04-15T12:00:00.000Z",
+          revokedAt: null
+        }
+      };
+    }
+
+    async revokeBridgeToken() {
+      return {
+        id: "token-1",
+        label: "codex-bridge",
+        bridgeKind: "codex",
+        allowedRoomIds: ["room-1"],
+        createdAt: "2026-04-15T12:00:00.000Z",
+        revokedAt: "2026-04-15T12:01:00.000Z"
+      };
+    }
+
+    async listBridgeSessions() {
+      return [];
+    }
+
+    async listRoomSummaries() {
+      return [];
+    }
   }
 
   return {

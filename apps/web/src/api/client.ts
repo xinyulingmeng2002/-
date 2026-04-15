@@ -36,6 +36,55 @@ export type UploadAttachmentResponse = {
   sizeBytes: number;
 };
 
+export type ParticipantRecord = {
+  id: string;
+  type: "human" | "agent" | "bridge" | "system";
+  displayName: string;
+  bridgeKind: "codex" | "openclaw" | "generic" | null;
+  capabilities: string[];
+  createdAt: string;
+  lastSeenAt: string;
+};
+
+export type BridgeKind = "codex" | "openclaw" | "generic";
+
+export type BridgeTokenRecord = {
+  id: string;
+  label: string;
+  bridgeKind: BridgeKind;
+  allowedRoomIds: string[];
+  createdAt: string;
+  revokedAt: string | null;
+};
+
+export type BridgeTokenCreateResponse = {
+  token: string;
+  metadata: BridgeTokenRecord;
+};
+
+export type BridgeSessionRecord = {
+  id: string;
+  tokenId: string;
+  agentId: string;
+  status: "connected" | "disconnected";
+  activeRoomIds: string[];
+  connectedAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+};
+
+export type RoomSummaryRecord = {
+  roomId: string;
+  generatedAt: string;
+  messageCount: number;
+  participantCount: number;
+  summaryText: string;
+  sourceEventRange: {
+    firstMessageId: string;
+    lastMessageId: string;
+  };
+};
+
 export class ApiClient {
   private readonly baseUrl: string;
 
@@ -110,5 +159,48 @@ export class ApiClient {
       method: "POST",
       body: formData
     });
+  }
+
+  async listParticipants(): Promise<ParticipantRecord[]> {
+    const response = await this.request<{ items: ParticipantRecord[] }>("/api/participants");
+    return response.items;
+  }
+
+  async listBridgeTokens(): Promise<BridgeTokenRecord[]> {
+    const response = await this.request<{ items: BridgeTokenRecord[] }>("/api/bridge-tokens");
+    return response.items;
+  }
+
+  async createBridgeToken(input: {
+    label: string;
+    bridgeKind: BridgeKind;
+    allowedRoomIds: string[];
+  }): Promise<BridgeTokenCreateResponse> {
+    return this.request<BridgeTokenCreateResponse>("/api/bridge-tokens", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(input)
+    });
+  }
+
+  async revokeBridgeToken(id: string): Promise<BridgeTokenRecord> {
+    return this.request<BridgeTokenRecord>(`/api/bridge-tokens/${id}/revoke`, {
+      method: "POST"
+    });
+  }
+
+  async listBridgeSessions(): Promise<BridgeSessionRecord[]> {
+    const response = await this.request<{ items: BridgeSessionRecord[] }>("/api/bridge-sessions");
+    return response.items;
+  }
+
+  async listRoomSummaries(roomId: string): Promise<RoomSummaryRecord[]> {
+    const params = new URLSearchParams({ roomId });
+    const response = await this.request<{ items: RoomSummaryRecord[] }>(
+      `/api/room-summaries?${params.toString()}`
+    );
+    return response.items;
   }
 }

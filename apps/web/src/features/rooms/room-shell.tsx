@@ -2,8 +2,13 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   ApiClient,
+  type BridgeSessionRecord,
+  type BridgeTokenCreateResponse,
+  type BridgeTokenRecord,
   type MessageEventRecord,
+  type ParticipantRecord,
   type RoomRecord,
+  type RoomSummaryRecord,
   type UploadAttachmentResponse
 } from "../../api/client";
 import {
@@ -11,6 +16,7 @@ import {
   type PresenceParticipant,
   type RoomSocketClient
 } from "../../api/socket";
+import { AgentPanel } from "../agents/agent-panel";
 import { MessageComposer, type MessageComposerSubmit } from "../chat/message-composer";
 import { MessageList, type TimelineMessage } from "../chat/message-list";
 import { ParticipantList, type ParticipantViewModel } from "../participants/participant-list";
@@ -20,6 +26,13 @@ type RoomShellProps = {
   apiClient: ApiClient;
   speakerParticipantId?: string;
   createSocketClient?: (baseUrl?: string) => RoomSocketClient;
+};
+
+type AgentPanelData = {
+  directoryParticipants: ParticipantRecord[];
+  bridgeSessions: BridgeSessionRecord[];
+  bridgeTokens: BridgeTokenRecord[];
+  roomSummaries: RoomSummaryRecord[];
 };
 
 const DEFAULT_SPACE_ID = "space-default";
@@ -106,14 +119,34 @@ function getParticipantDisplayName(participantId: string): string {
   return participantId;
 }
 
+async function loadAgentPanelData(apiClient: ApiClient, roomId: string): Promise<AgentPanelData> {
+  const [directoryParticipants, bridgeSessions, bridgeTokens, roomSummaries] = await Promise.all([
+    apiClient.listParticipants(),
+    apiClient.listBridgeSessions(),
+    apiClient.listBridgeTokens(),
+    apiClient.listRoomSummaries(roomId)
+  ]);
+
+  return {
+    directoryParticipants,
+    bridgeSessions,
+    bridgeTokens,
+    roomSummaries
+  };
+}
+
 function buildParticipants(
   room: RoomRecord | undefined,
   messages: TimelineMessage[],
   speakerParticipantId: string,
-  realtimeParticipants: ParticipantViewModel[]
+  realtimeParticipants: ParticipantViewModel[],
+  directoryParticipants: ParticipantRecord[],
+  bridgeSessions: BridgeSessionRecord[],
+  activeRoomId: string
 ): ParticipantViewModel[] {
   const seen = new Set<string>([speakerParticipantId, "agent-observer"]);
   const nextParticipants = [...realtimeParticipants];
+  const participantDirectory = new Map(directoryParticipants.map((participant) => [participant.id, participant]));
 
   for (const participantId of room?.participantIds ?? []) {
     seen.add(participantId);
@@ -121,13 +154,26 @@ function buildParticipants(
   for (const message of messages) {
     seen.add(message.speakerParticipantId);
   }
+  for (const session of bridgeSessions) {
+    if (session.status === "connected" && session.activeRoomIds.includes(activeRoomId)) {
+      seen.add(session.agentId);
+    }
+  }
 
   for (const participantId of Array.from(seen)) {
+    const record = participantDirectory.get(participantId);
     nextParticipants.push({
       id: participantId,
       displayName:
-        participantId === "agent-observer" ? "Observer" : getParticipantDisplayName(participantId),
-      type: participantId === "agent-observer" ? "agent" : inferParticipantType(participantId)
+        participantId === "agent-observer"
+          ? "Observer"
+          : record?.displayName ?? getParticipantDisplayName(participantId),
+      type:
+        participantId === "agent-observer"
+          ? "agent"
+          : record?.type === "human"
+            ? "human"
+            : inferParticipantType(participantId)
     });
   }
 
@@ -146,10 +192,15 @@ export function RoomShell({
 }: RoomShellProps) {
   const [statusText, setStatusText] = useState("正在连接协作空间…");
   const [errorText, setErrorText] = useState("");
+  const [panelErrorText, setPanelErrorText] = useState("");
   const [rooms, setRooms] = useState<RoomRecord[]>([]);
   const [activeRoomId, setActiveRoomId] = useState("");
   const [messages, setMessages] = useState<TimelineMessage[]>([]);
   const [realtimeParticipants, setRealtimeParticipants] = useState<ParticipantViewModel[]>([]);
+  const [directoryParticipants, setDirectoryParticipants] = useState<ParticipantRecord[]>([]);
+  const [bridgeSessions, setBridgeSessions] = useState<BridgeSessionRecord[]>([]);
+  const [bridgeTokens, setBridgeTokens] = useState<BridgeTokenRecord[]>([]);
+  const [roomSummaries, setRoomSummaries] = useState<RoomSummaryRecord[]>([]);
   const socketClientRef = useRef<RoomSocketClient | null>(null);
 
   useEffect(() => {
@@ -237,6 +288,43 @@ export function RoomShell({
   }, [activeRoomId, apiClient]);
 
   useEffect(() => {
+    if (!activeRoomId || activeRoomId === "room-offline") {
+      setDirectoryParticipants([]);
+      setBridgeSessions([]);
+      setBridgeTokens([]);
+      setRoomSummaries([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadPanel() {
+      try {
+        const data = await loadAgentPanelData(apiClient, activeRoomId);
+        if (cancelled) {
+          return;
+        }
+
+        setDirectoryParticipants(data.directoryParticipants);
+        setBridgeSessions(data.bridgeSessions);
+        setBridgeTokens(data.bridgeTokens);
+        setRoomSummaries(data.roomSummaries);
+        setPanelErrorText("");
+      } catch {
+        if (!cancelled) {
+          setPanelErrorText("接入面板加载失败。");
+        }
+      }
+    }
+
+    void loadPanel();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRoomId, apiClient]);
+
+  useEffect(() => {
     setRealtimeParticipants([]);
   }, [activeRoomId]);
 
@@ -298,8 +386,25 @@ export function RoomShell({
     activeRoom,
     messages,
     speakerParticipantId,
-    realtimeParticipants
+    realtimeParticipants,
+    directoryParticipants,
+    bridgeSessions,
+    activeRoomId
   );
+  const latestSummary = roomSummaries.at(-1) ?? null;
+
+  async function refreshAgentPanel(roomId = activeRoomId) {
+    if (!roomId || roomId === "room-offline") {
+      return;
+    }
+
+    const data = await loadAgentPanelData(apiClient, roomId);
+    setDirectoryParticipants(data.directoryParticipants);
+    setBridgeSessions(data.bridgeSessions);
+    setBridgeTokens(data.bridgeTokens);
+    setRoomSummaries(data.roomSummaries);
+    setPanelErrorText("");
+  }
 
   async function handleSend(input: MessageComposerSubmit) {
     if (!activeRoomId) {
@@ -334,6 +439,7 @@ export function RoomShell({
       participant: createParticipantIdentity(input.speakerParticipantId),
       message: event
     });
+    await refreshAgentPanel(activeRoomId);
   }
 
   function handleUpload(response: UploadAttachmentResponse) {
@@ -344,6 +450,21 @@ export function RoomShell({
         `已上传 ${response.originalName}，可通过 ${response.attachment.url} 访问。`
       )
     ]);
+  }
+
+  async function handleCreateToken(input: {
+    label: string;
+    bridgeKind: "codex" | "openclaw" | "generic";
+    allowedRoomIds: string[];
+  }): Promise<BridgeTokenCreateResponse> {
+    const created = await apiClient.createBridgeToken(input);
+    await refreshAgentPanel(activeRoomId);
+    return created;
+  }
+
+  async function handleRevokeToken(id: string): Promise<void> {
+    await apiClient.revokeBridgeToken(id);
+    await refreshAgentPanel(activeRoomId);
   }
 
   return (
@@ -367,6 +488,15 @@ export function RoomShell({
         </div>
         <div className="panel-body panel-body--stack">
           {errorText ? <div className="status-banner">{errorText}</div> : null}
+          {latestSummary ? (
+            <div className="summary-card">
+              <strong>最新摘要</strong>
+              <p>{latestSummary.summaryText}</p>
+              <span>
+                {latestSummary.messageCount} 条消息 · {latestSummary.participantCount} 位参与者
+              </span>
+            </div>
+          ) : null}
           <MessageList messages={messages} />
           <MessageComposer
             speakerParticipantId={speakerParticipantId}
@@ -382,10 +512,20 @@ export function RoomShell({
         <div className="panel-header">
           <span className="panel-eyebrow">Presence</span>
           <h2>参与者</h2>
-          <p className="panel-caption">人类与智能体按角色分区</p>
+          <p className="panel-caption">房间参与者、bridge 会话、token 与摘要</p>
         </div>
-        <div className="panel-body panel-body--scroll">
+        <div className="panel-body panel-body--scroll panel-body--stack">
+          {panelErrorText ? <div className="status-banner">{panelErrorText}</div> : null}
           <ParticipantList participants={participants} />
+          <AgentPanel
+            activeRoomId={activeRoomId}
+            participants={directoryParticipants}
+            sessions={bridgeSessions}
+            tokens={bridgeTokens}
+            latestSummary={latestSummary}
+            onCreateToken={handleCreateToken}
+            onRevokeToken={handleRevokeToken}
+          />
         </div>
       </aside>
     </div>

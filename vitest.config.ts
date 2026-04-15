@@ -5,7 +5,8 @@ export default defineConfig({
     passWithNoTests: true,
     projects: [
       "packages/*/vitest.config.ts",
-      "apps/*/vitest.config.ts"
+      "apps/*/vitest.config.ts",
+      "apps/bridges/*/vitest.config.ts"
     ]
   }
 });

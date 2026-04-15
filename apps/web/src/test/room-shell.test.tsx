@@ -20,7 +20,46 @@ describe("RoomShell", () => {
       createRoom: vi.fn(),
       listMessages: vi.fn().mockResolvedValue([]),
       createMessage: vi.fn(),
-      uploadFile: vi.fn()
+      uploadFile: vi.fn(),
+      listParticipants: vi.fn().mockResolvedValue([
+        {
+          id: "agent-realtime",
+          type: "agent",
+          displayName: "实时助手",
+          bridgeKind: "generic",
+          capabilities: ["chat"],
+          createdAt: "2026-04-15T12:00:00.000Z",
+          lastSeenAt: "2026-04-15T12:00:00.000Z"
+        }
+      ]),
+      listBridgeTokens: vi.fn().mockResolvedValue([]),
+      createBridgeToken: vi.fn(),
+      revokeBridgeToken: vi.fn(),
+      listBridgeSessions: vi.fn().mockResolvedValue([
+        {
+          id: "session-1",
+          tokenId: "token-1",
+          agentId: "agent-realtime",
+          status: "connected",
+          activeRoomIds: ["room-1"],
+          connectedAt: "2026-04-15T12:00:00.000Z",
+          lastSeenAt: "2026-04-15T12:00:00.000Z",
+          expiresAt: "2026-04-15T12:02:00.000Z"
+        }
+      ]),
+      listRoomSummaries: vi.fn().mockResolvedValue([
+        {
+          roomId: "room-1",
+          generatedAt: "2026-04-15T12:00:00.000Z",
+          messageCount: 2,
+          participantCount: 2,
+          summaryText: 'Room room-1 has 2 messages from 2 participants. Latest message: "来自实时链路"',
+          sourceEventRange: {
+            firstMessageId: "msg-1",
+            lastMessageId: "msg-2"
+          }
+        }
+      ])
     } as unknown as ApiClient;
 
     const handlers: {
@@ -89,7 +128,8 @@ describe("RoomShell", () => {
       });
     });
 
-    expect(await screen.findByText("实时助手")).toBeInTheDocument();
+    expect((await screen.findAllByText("实时助手")).length).toBeGreaterThan(0);
+    expect(await screen.findByText("在线桥接")).toBeInTheDocument();
 
     await act(async () => {
       handlers.message?.({
@@ -114,5 +154,6 @@ describe("RoomShell", () => {
     });
 
     expect(await screen.findByText("来自实时链路")).toBeInTheDocument();
+    expect((await screen.findAllByText(/Room room-1 has 2 messages/)).length).toBeGreaterThan(0);
   });
 });
