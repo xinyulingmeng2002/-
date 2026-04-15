@@ -129,4 +129,178 @@ describe("bridge egress", () => {
       cleanupTempDir(tempDir);
     }
   });
+
+  it("rejects a sessionId that belongs to another token or agent", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir, now: () => new Date("2026-04-15T15:00:00.000Z") });
+
+    try {
+      const tokenA = await app.inject({
+        method: "POST",
+        url: "/api/bridge-tokens",
+        payload: {
+          label: "Codex A",
+          bridgeKind: "codex",
+          allowedRoomIds: ["room-1"]
+        }
+      });
+      const tokenB = await app.inject({
+        method: "POST",
+        url: "/api/bridge-tokens",
+        payload: {
+          label: "Codex B",
+          bridgeKind: "codex",
+          allowedRoomIds: ["room-1"]
+        }
+      });
+
+      const connectA = await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/connect",
+        headers: {
+          authorization: `Bearer ${tokenA.json().token as string}`
+        },
+        payload: {
+          agentId: "agent-a",
+          displayName: "Agent A",
+          capabilities: ["chat"]
+        }
+      });
+      const sessionIdA = connectA.json().session.id as string;
+
+      const joinA = await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/join-room",
+        headers: {
+          authorization: `Bearer ${tokenA.json().token as string}`
+        },
+        payload: {
+          sessionId: sessionIdA,
+          agentId: "agent-a",
+          roomId: "room-1"
+        }
+      });
+      expect(joinA.statusCode).toBe(200);
+
+      const connectB = await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/connect",
+        headers: {
+          authorization: `Bearer ${tokenB.json().token as string}`
+        },
+        payload: {
+          agentId: "agent-b",
+          displayName: "Agent B",
+          capabilities: ["chat"]
+        }
+      });
+      expect(connectB.statusCode).toBe(201);
+
+      const listed = await app.inject({
+        method: "GET",
+        url: `/api/bridge/egress/events?agentId=agent-b&sessionId=${sessionIdA}&roomId=room-1`,
+        headers: {
+          authorization: `Bearer ${tokenB.json().token as string}`
+        }
+      });
+
+      expect(listed.statusCode).toBe(404);
+      expect(listed.json()).toEqual({
+        error: "bridge session not found"
+      });
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("returns the latest event window when the cursor is stale", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir, now: () => new Date("2026-04-15T16:00:00.000Z") });
+
+    try {
+      const tokenCreated = await app.inject({
+        method: "POST",
+        url: "/api/bridge-tokens",
+        payload: {
+          label: "Codex bridge",
+          bridgeKind: "codex",
+          allowedRoomIds: ["room-1"]
+        }
+      });
+      const token = tokenCreated.json().token as string;
+
+      const connected = await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/connect",
+        headers: {
+          authorization: `Bearer ${token}`
+        },
+        payload: {
+          agentId: "agent-codex",
+          displayName: "Codex",
+          capabilities: ["chat"]
+        }
+      });
+      const sessionId = connected.json().session.id as string;
+
+      await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/join-room",
+        headers: {
+          authorization: `Bearer ${token}`
+        },
+        payload: {
+          sessionId,
+          agentId: "agent-codex",
+          roomId: "room-1"
+        }
+      });
+
+      const first = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        payload: {
+          roomId: "room-1",
+          speakerParticipantId: "human-owner",
+          body: "第一条"
+        }
+      });
+      const second = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        payload: {
+          roomId: "room-1",
+          speakerParticipantId: "human-owner",
+          body: "第二条"
+        }
+      });
+      expect(first.statusCode).toBe(201);
+      expect(second.statusCode).toBe(201);
+
+      const listed = await app.inject({
+        method: "GET",
+        url: `/api/bridge/egress/events?agentId=agent-codex&sessionId=${sessionId}&roomId=room-1&afterEventId=evt-missing&limit=1`,
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+
+      expect(listed.statusCode).toBe(200);
+      expect(listed.json()).toEqual({
+        items: [
+          expect.objectContaining({
+            eventId: second.json().eventId,
+            payload: expect.objectContaining({
+              body: "第二条"
+            })
+          })
+        ],
+        nextCursor: second.json().eventId
+      });
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
 });

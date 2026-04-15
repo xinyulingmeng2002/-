@@ -314,7 +314,12 @@ export class BridgeService {
     sessionId?: string;
   }): BridgeSessionRecord | null {
     if (input.sessionId) {
-      return this.bridgeSessionStore.get(input.sessionId);
+      const session = this.bridgeSessionStore.get(input.sessionId);
+      if (!session) {
+        return null;
+      }
+
+      return session.tokenId === input.tokenId && session.agentId === input.agentId ? session : null;
     }
 
     return this.bridgeSessionStore.findByTokenAndAgent(input.tokenId, input.agentId);

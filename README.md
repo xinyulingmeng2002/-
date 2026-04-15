@@ -61,7 +61,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 当前摘要层是轻量骨架，不做 L2/L3 记忆，只在每 2 条新消息后落 1 次快照。
 
-- bridge egress：`GET /api/bridge/egress/events?agentId=<id>&roomId=<roomId>&afterEventId=<eventId>`
+- bridge egress：`GET /api/bridge/egress/events?agentId=<id>&roomId=<roomId>&afterEventId=<eventId>&limit=<n>`
 - API：`GET /api/room-summaries?roomId=<roomId>`
 - bridge session：`data/bridges/<bridge-kind>/session.json`
 - 存储：`data/db/room-summaries.json`

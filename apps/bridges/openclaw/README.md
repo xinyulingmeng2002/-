@@ -70,6 +70,7 @@ npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id evt_
 ```
 
 如果不传 `--room-id`，默认读取 session 文件里的当前房间；如果不传 `--after-event-id`，会返回当前房间最近一批事件。
+如果传入的 `--after-event-id` 已失效，服务端会回退到最近一批事件并返回新的 `nextCursor`，避免轮询卡死。
 
 也支持 stdin：
 

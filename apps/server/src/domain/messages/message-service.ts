@@ -117,7 +117,7 @@ export class MessageService {
     if (options.afterEventId) {
       const index = events.findIndex((event) => event.eventId === options.afterEventId);
       if (index < 0) {
-        return [];
+        return events.length > limit ? events.slice(-limit) : events;
       }
 
       return events.slice(index + 1, index + 1 + limit);
