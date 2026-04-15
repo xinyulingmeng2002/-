@@ -1,0 +1,222 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  runOpenClawBridgeSession,
+  sendOpenClawBridgeMessage,
+  stopOpenClawBridgeSession
+} from "../src/runtime";
+
+function createTempDir(prefix = "ma-openclaw-bridge-"): string {
+  return mkdtempSync(join(tmpdir(), prefix));
+}
+
+function cleanupTempDir(dirPath: string): void {
+  rmSync(dirPath, { recursive: true, force: true });
+}
+
+describe("openclaw bridge runtime", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("connects, joins the target room, and writes a reusable session file", async () => {
+    const tempDir = createTempDir("ma-openclaw-bridge-");
+    const sessionFilePath = join(tempDir, "openclaw-session.json");
+    const client = {
+      connect: vi.fn().mockResolvedValue({
+        participant: {
+          id: "agent-openclaw-main",
+          displayName: "OpenClaw",
+          bridgeKind: "openclaw"
+        },
+        session: {
+          id: "session-1"
+        }
+      }),
+      joinRoom: vi.fn().mockResolvedValue({
+        id: "session-1",
+        activeRoomIds: ["room-1"]
+      }),
+      heartbeat: vi.fn().mockResolvedValue({ id: "session-1", status: "connected" }),
+      disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
+      sendMessage: vi.fn()
+    } as const;
+
+    try {
+      const handle = await runOpenClawBridgeSession({
+        client,
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        roomId: "room-1",
+        capabilities: ["chat", "tools"],
+        sessionFilePath,
+        heartbeatMs: 5_000
+      });
+
+      expect(client.connect).toHaveBeenCalledWith({
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        capabilities: ["chat", "tools"]
+      });
+      expect(client.joinRoom).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        roomId: "room-1",
+        displayName: "OpenClaw",
+        capabilities: ["chat", "tools"]
+      });
+
+      const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
+      expect(stored).toEqual({
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        roomId: "room-1",
+        capabilities: ["chat", "tools"],
+        heartbeatMs: 5000
+      });
+
+      await handle.shutdown();
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("keeps the bridge session alive with periodic heartbeats", async () => {
+    vi.useFakeTimers();
+
+    const tempDir = createTempDir("ma-openclaw-bridge-");
+    const sessionFilePath = join(tempDir, "openclaw-session.json");
+    const client = {
+      connect: vi.fn().mockResolvedValue({ session: { id: "session-1" } }),
+      joinRoom: vi.fn().mockResolvedValue({ id: "session-1", activeRoomIds: ["room-1"] }),
+      heartbeat: vi.fn().mockResolvedValue({ id: "session-1", status: "connected" }),
+      disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
+      sendMessage: vi.fn()
+    } as const;
+
+    try {
+      const handle = await runOpenClawBridgeSession({
+        client,
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        roomId: "room-1",
+        sessionFilePath,
+        heartbeatMs: 1_000
+      });
+
+      await vi.advanceTimersByTimeAsync(2_500);
+
+      expect(client.heartbeat).toHaveBeenCalledTimes(2);
+      expect(client.heartbeat).toHaveBeenNthCalledWith(1, {
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main"
+      });
+
+      await handle.shutdown();
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("reads the persisted session file and sends a room message", async () => {
+    const tempDir = createTempDir("ma-openclaw-bridge-");
+    const sessionFilePath = join(tempDir, "openclaw-session.json");
+    const client = {
+      sendMessage: vi.fn().mockResolvedValue({
+        kind: "message.created",
+        roomId: "room-1",
+        payload: {
+          body: "OpenClaw says hello"
+        }
+      })
+    };
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      const sent = await sendOpenClawBridgeMessage({
+        client: client as never,
+        sessionFilePath,
+        body: "OpenClaw says hello"
+      });
+
+      expect(client.sendMessage).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        roomId: "room-1",
+        body: "OpenClaw says hello"
+      });
+      expect(sent).toEqual(
+        expect.objectContaining({
+          roomId: "room-1"
+        })
+      );
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("disconnects and removes the persisted session file", async () => {
+    const tempDir = createTempDir("ma-openclaw-bridge-");
+    const sessionFilePath = join(tempDir, "openclaw-session.json");
+    const client = {
+      disconnect: vi.fn().mockResolvedValue({
+        id: "session-1",
+        status: "disconnected"
+      })
+    };
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      const result = await stopOpenClawBridgeSession({
+        client: client as never,
+        sessionFilePath
+      });
+
+      expect(client.disconnect).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main"
+      });
+      expect(result).toEqual(
+        expect.objectContaining({
+          status: "disconnected"
+        })
+      );
+      expect(existsSync(sessionFilePath)).toBe(false);
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+});

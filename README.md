@@ -5,8 +5,8 @@ Phase 1A 已完成的独立仓库底座，包含：
 - `apps/server`：Fastify + Socket.IO 服务端
 - `apps/web`：React + Vite 最小协作前端
 - `apps/bridges/shared`：bridge 共享 client
-- `apps/bridges/codex`：Codex 接入壳说明
-- `apps/bridges/openclaw`：OpenClaw 接入壳说明
+- `apps/bridges/codex`：Codex 可运行 bridge CLI 适配器
+- `apps/bridges/openclaw`：OpenClaw 可运行 bridge CLI 适配器
 - `packages/protocol`：共享协议与 Zod schema
 
 ## 安装
@@ -82,6 +82,7 @@ npm run typecheck
 npm --workspace @ma/server test
 npm --workspace @ma/web test
 npm --workspace @ma/bridge-codex test
+npm --workspace @ma/bridge-openclaw test
 npm --workspace @ma/bridge-shared test
 npm --workspace @ma/protocol test
 npm --workspace @ma/web run build
@@ -93,9 +94,11 @@ npm --workspace @ma/web run build
 npm run dev:server
 npm run dev:web
 npm --workspace @ma/bridge-codex run dev -- session start --room-id room-1
+npm --workspace @ma/bridge-openclaw run dev -- session start --room-id room-1
 npm --workspace @ma/server run typecheck
 npm --workspace @ma/web run typecheck
 npm --workspace @ma/bridge-codex run typecheck
+npm --workspace @ma/bridge-openclaw run typecheck
 npm --workspace @ma/bridge-shared run typecheck
 ```
 

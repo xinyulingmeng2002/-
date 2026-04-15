@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { parseCodexBridgeCliArgs } from "../src/config";
+import { parseOpenClawBridgeCliArgs } from "../src/config";
 
-describe("codex bridge config", () => {
+describe("openclaw bridge config", () => {
   it("parses session start arguments with env fallbacks", () => {
-    const parsed = parseCodexBridgeCliArgs(
+    const parsed = parseOpenClawBridgeCliArgs(
       ["session", "start", "--room-id", "room-1", "--heartbeat-ms", "30000"],
       {
         MA_BRIDGE_BASE_URL: "http://127.0.0.1:3000",
         MA_BRIDGE_TOKEN: "secret-token",
-        MA_BRIDGE_AGENT_ID: "agent-codex-main",
-        MA_BRIDGE_DISPLAY_NAME: "Codex",
-        MA_BRIDGE_CAPABILITIES: "chat,code",
-        MA_BRIDGE_SESSION_FILE: "/tmp/codex-session.json"
+        MA_BRIDGE_AGENT_ID: "agent-openclaw-main",
+        MA_BRIDGE_DISPLAY_NAME: "OpenClaw",
+        MA_BRIDGE_CAPABILITIES: "chat,tools",
+        MA_BRIDGE_SESSION_FILE: "/tmp/openclaw-session.json"
       },
       "/workspace"
     );
@@ -22,23 +22,23 @@ describe("codex bridge config", () => {
       options: {
         baseUrl: "http://127.0.0.1:3000",
         token: "secret-token",
-        agentId: "agent-codex-main",
-        displayName: "Codex",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
         roomId: "room-1",
-        capabilities: ["chat", "code"],
-        sessionFilePath: "/tmp/codex-session.json",
+        capabilities: ["chat", "tools"],
+        sessionFilePath: "/tmp/openclaw-session.json",
         heartbeatMs: 30000
       }
     });
   });
 
   it("falls back to default capabilities when none are provided", () => {
-    const parsed = parseCodexBridgeCliArgs(
+    const parsed = parseOpenClawBridgeCliArgs(
       ["session", "start", "--room-id", "room-1"],
       {
         MA_BRIDGE_BASE_URL: "http://127.0.0.1:3000",
         MA_BRIDGE_TOKEN: "secret-token",
-        MA_BRIDGE_AGENT_ID: "agent-codex-main"
+        MA_BRIDGE_AGENT_ID: "agent-openclaw-main"
       },
       "/workspace"
     );
@@ -46,7 +46,7 @@ describe("codex bridge config", () => {
     expect(parsed).toEqual({
       kind: "session.start",
       options: expect.objectContaining({
-        capabilities: ["chat", "code"]
+        capabilities: ["chat", "tools"]
       })
     });
   });

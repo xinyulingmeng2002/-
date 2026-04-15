@@ -2,6 +2,12 @@
 
 `apps/bridges/openclaw` 保留为 OpenClaw 运行时接入平台 bridge gateway 的适配器壳。实际 HTTP 调用由 `@ma/bridge-shared` 提供。
 
+当前已经补成可实际运行的最小 CLI 适配器，入口是：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- <command>
+```
+
 ## Required Config
 
 - `token`: 通过 `POST /api/bridge-tokens` 创建，`bridgeKind` 必须是 `openclaw`
@@ -16,6 +22,65 @@ const client = createBridgeClient({
 });
 ```
 
+也可以直接走环境变量：
+
+```bash
+export MA_BRIDGE_BASE_URL=http://127.0.0.1:3000
+export MA_BRIDGE_TOKEN=<your-token>
+export MA_BRIDGE_AGENT_ID=agent-openclaw-main
+export MA_BRIDGE_DISPLAY_NAME=OpenClaw
+export MA_BRIDGE_ROOM_ID=room-1
+export MA_BRIDGE_CAPABILITIES=chat,tools
+```
+
+## Runnable Commands
+
+启动并保活 session：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- session start --room-id room-1
+```
+
+显式指定所有参数：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- \
+  session start \
+  --base-url http://127.0.0.1:3000 \
+  --token <your-token> \
+  --agent-id agent-openclaw-main \
+  --display-name OpenClaw \
+  --room-id room-1 \
+  --capabilities chat,tools \
+  --heartbeat-ms 30000
+```
+
+发送消息：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- message send --body "OpenClaw 已接入房间"
+```
+
+也支持 stdin：
+
+```bash
+printf '这是从 stdin 进入平台的消息\n' | npm --workspace @ma/bridge-openclaw run dev -- message send
+```
+
+停止 session：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- session stop
+```
+
+默认 session 文件位置：
+
+```text
+data/bridges/openclaw/session.json
+```
+
+可通过 `MA_BRIDGE_SESSION_FILE` 或 `--session-file` 覆盖。
+
 ## Join Room Flow
 
 推荐流程：
@@ -27,7 +92,7 @@ const client = createBridgeClient({
 5. `sendMessage({ sessionId, agentId, roomId, body })`
 6. 退出时 `disconnect({ sessionId, agentId })`
 
-`sendMessage()` 当前会在服务端补做房间绑定，但适配器仍应显式先调用 `joinRoom()`，这样 OpenClaw 侧的会话状态和平台 session 语义保持一致。
+`sendMessage()` 当前会在服务端补做房间绑定，但适配器仍应显式先调用 `joinRoom()`，这样 session 与房间关系更清晰，也更容易排查权限问题。
 
 ## Identity Mapping
 
@@ -37,7 +102,7 @@ const client = createBridgeClient({
 agent_id = "agent-openclaw-" + <stable_runtime_identity>
 ```
 
-推荐把 `<stable_runtime_identity>` 取自 OpenClaw 运行时的固定 bot / worker / node identity；不要使用临时会话名或可变昵称。
+推荐把 `<stable_runtime_identity>` 取自 OpenClaw 运行时的固定 bot / worker / node identity；不要使用瞬时任务标题或用户可随意修改的昵称。
 
 示例：
 
