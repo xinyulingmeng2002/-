@@ -5,8 +5,8 @@ import { buildServer } from "./app";
 import { getServerConfig } from "./config";
 
 export async function startServer() {
-  const app = buildServer();
-  const { host, port } = getServerConfig();
+  const { host, port, dataDir, uploadsPublicBasePath } = getServerConfig();
+  const app = buildServer({ dataDir, uploadsPublicBasePath });
   await app.listen({ host, port });
 }
 

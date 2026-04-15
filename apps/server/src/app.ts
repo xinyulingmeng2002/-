@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { join } from "node:path";
 
 import { createEventLogStore } from "./domain/messages/event-log-store";
 import { MessageService } from "./domain/messages/message-service";
@@ -10,13 +11,16 @@ import { healthRoutes } from "./routes/health";
 import { messagesRoutes } from "./routes/messages";
 import { roomsRoutes } from "./routes/rooms";
 import { spacesRoutes } from "./routes/spaces";
+import { uploadsRoutes } from "./routes/uploads";
 
 export interface BuildServerOptions {
   dataDir?: string;
+  uploadsPublicBasePath?: string;
 }
 
 export function buildServer(options: BuildServerOptions = {}) {
   const app = Fastify();
+  const rootDataDir = options.dataDir ?? process.cwd();
   const spaceStore = createSpaceStore(options.dataDir);
   const roomStore = createRoomStore(options.dataDir);
   const eventLogStore = createEventLogStore(options.dataDir);
@@ -27,6 +31,10 @@ export function buildServer(options: BuildServerOptions = {}) {
   app.register(spacesRoutes, { spaceStore });
   app.register(roomsRoutes, { roomStore });
   app.register(messagesRoutes, { messageService });
+  app.register(uploadsRoutes, {
+    uploadsDir: join(rootDataDir, "data", "uploads"),
+    uploadsPublicBasePath: options.uploadsPublicBasePath ?? "/uploads"
+  });
   registerRoomRealtimeGateway(app);
 
   return app;

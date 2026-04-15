@@ -1,0 +1,70 @@
+import { randomUUID } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+import multipart from "@fastify/multipart";
+import type { FastifyPluginAsync } from "fastify";
+
+type UploadsRoutesOptions = {
+  uploadsDir: string;
+  uploadsPublicBasePath: string;
+};
+
+function sanitizeFilename(filename: string): string {
+  const withoutPathSeparators = filename.replace(/[\\/]+/g, "-");
+  const normalized = withoutPathSeparators.replace(/[^a-zA-Z0-9._-]+/g, "-");
+  const collapsed = normalized.replace(/-+/g, "-").replace(/^\.+/, "");
+  const safe = collapsed.slice(0, 120).replace(/^[-.]+|[-.]+$/g, "");
+
+  return safe || "file";
+}
+
+function getAttachmentKind(mimeType: string): "image" | "file" {
+  return mimeType.startsWith("image/") ? "image" : "file";
+}
+
+export const uploadsRoutes: FastifyPluginAsync<UploadsRoutesOptions> = async (app, options) => {
+  await app.register(multipart, {
+    limits: {
+      files: 1
+    }
+  });
+
+  const basePath = options.uploadsPublicBasePath.replace(/\/+$/, "");
+
+  app.post("/api/uploads", async (request, reply) => {
+    const file = await request.file();
+    if (!file) {
+      return reply.code(400).send({ error: "multipart file field 'file' is required" });
+    }
+
+    const now = new Date();
+    const year = String(now.getUTCFullYear());
+    const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+    const id = randomUUID();
+    const originalName = file.filename || "file";
+    const safeName = sanitizeFilename(originalName);
+    const storedName = `${id}-${safeName}`;
+    const dirPath = join(options.uploadsDir, year, month);
+    const filePath = join(dirPath, storedName);
+
+    try {
+      const content = await file.toBuffer();
+      mkdirSync(dirPath, { recursive: true });
+      writeFileSync(filePath, content);
+
+      return reply.code(201).send({
+        id,
+        messageId: "",
+        kind: getAttachmentKind(file.mimetype),
+        url: `${basePath}/${year}/${month}/${storedName}`,
+        originalName,
+        mimeType: file.mimetype,
+        sizeBytes: content.byteLength
+      });
+    } catch (error) {
+      app.log.error({ error }, "upload persistence failed");
+      return reply.code(500).send({ error: "upload persistence failed" });
+    }
+  });
+};
