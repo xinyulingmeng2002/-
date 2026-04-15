@@ -208,7 +208,8 @@ Requirements:
 
 1. token secret only returned at creation time
 2. persisted metadata only stores secret hash
-3. sessions track `connectedAt` and `lastSeenAt`
+3. sessions track `connectedAt`, `lastSeenAt`, and `expiresAt`
+4. `GET /api/bridge-sessions` must derive `connected` / `disconnected` from heartbeat freshness
 
 - [ ] **Step 4: Add participant, token, and session routes**
 
@@ -276,6 +277,8 @@ Responsibilities:
 3. upsert active bridge session
 4. bind agent to room
 5. append message through existing `MessageService`
+6. refresh session TTL on heartbeat
+7. mark session disconnected on explicit disconnect or heartbeat expiry
 
 - [ ] **Step 4: Add ingress routes**
 
@@ -283,6 +286,8 @@ Expose:
 
 ```ts
 app.post("/api/bridge/ingress/connect", ...)
+app.post("/api/bridge/ingress/heartbeat", ...)
+app.post("/api/bridge/ingress/disconnect", ...)
 app.post("/api/bridge/ingress/join-room", ...)
 app.post("/api/bridge/ingress/message", ...)
 ```
@@ -461,9 +466,10 @@ Responsibilities:
 
 1. token-based request headers
 2. `connect`
-3. `joinRoom`
-4. `sendMessage`
-5. `heartbeat`
+3. `heartbeat`
+4. `disconnect`
+5. `joinRoom`
+6. `sendMessage`
 
 - [ ] **Step 5: Add adapter shell docs**
 

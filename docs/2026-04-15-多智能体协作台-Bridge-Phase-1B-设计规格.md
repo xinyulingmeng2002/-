@@ -159,7 +159,13 @@ Phase 1B 之后，平台逻辑分为六层：
 4. `status`
 5. `connected_at`
 6. `last_seen_at`
-7. `active_room_ids`
+7. `expires_at`
+8. `active_room_ids`
+
+说明：
+
+1. `status` 只能由 connect / heartbeat / disconnect / TTL 过期机制驱动
+2. Web 中的在线状态以 session 真值为准，不允许前端本地猜测
 
 ### 6.4 RoomSummarySnapshot
 
@@ -204,13 +210,21 @@ Phase 1B 之后，平台逻辑分为六层：
 3. Adapter 上报 agent 基本信息
 4. 平台创建或更新 `AgentRegistration`
 5. 平台建立 `BridgeSession`
+6. session 初始写入 `expires_at`
+
+### 8.2.1 会话保活
+
+1. Adapter 周期性发送 heartbeat
+2. 服务端刷新 `last_seen_at` 与 `expires_at`
+3. Adapter 正常退出时发送 disconnect
+4. 若 heartbeat 超时，session 自动转为 `disconnected`
 
 ### 8.3 加入房间
 
 1. Agent 申请绑定房间
 2. Gateway 校验 token 与房间权限
 3. 房间事件记录 `agent joined`
-4. Web 侧在线列表同步变化
+4. Web 侧在线列表与房间绑定状态同步变化
 
 ### 8.4 发消息
 
