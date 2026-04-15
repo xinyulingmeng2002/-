@@ -12,10 +12,30 @@ interface PresencePayload {
   };
 }
 
-function waitForConnect(socket: Socket): Promise<void> {
+const describeSocket = process.env.RUN_SOCKET_IT === "1" ? describe : describe.skip;
+
+function waitForConnect(socket: Socket, timeoutMs = 1000): Promise<void> {
   return new Promise((resolve, reject) => {
-    socket.once("connect", () => resolve());
-    socket.once("connect_error", (error) => reject(error));
+    const timer = setTimeout(() => {
+      socket.off("connect", onConnect);
+      socket.off("connect_error", onConnectError);
+      reject(new Error("Timed out waiting for socket connect"));
+    }, timeoutMs);
+
+    function onConnect() {
+      clearTimeout(timer);
+      socket.off("connect_error", onConnectError);
+      resolve();
+    }
+
+    function onConnectError(error: Error) {
+      clearTimeout(timer);
+      socket.off("connect", onConnect);
+      reject(error);
+    }
+
+    socket.once("connect", onConnect);
+    socket.once("connect_error", onConnectError);
     socket.connect();
   });
 }
@@ -52,7 +72,13 @@ function expectNoEvent(socket: Socket, event: string, timeoutMs = 250): Promise<
   });
 }
 
-describe("socket room presence", () => {
+async function joinRoomBarrier(socket: Socket, payload: PresencePayload): Promise<void> {
+  const presencePromise = waitForEvent<PresencePayload>(socket, "room:presence");
+  socket.emit("room:join", payload);
+  await expect(presencePromise).resolves.toEqual(payload);
+}
+
+describeSocket("socket room presence", () => {
   it("broadcasts participant join to the room only", async () => {
     const { close, url } = await startTestServer();
     const a = io(url, { autoConnect: false, transports: ["websocket"] });
@@ -71,7 +97,7 @@ describe("socket room presence", () => {
         }
       };
 
-      a.emit("room:join", codex);
+      await joinRoomBarrier(a, codex);
 
       const presencePromise = waitForEvent<PresencePayload>(a, "room:presence");
       const noPresencePromise = expectNoEvent(outsider, "room:presence");
@@ -105,9 +131,8 @@ describe("socket room presence", () => {
         }
       };
 
-      a.emit("room:join", joined);
-      b.emit("room:join", joined);
-      await waitForEvent<PresencePayload>(a, "room:presence");
+      await joinRoomBarrier(a, joined);
+      await joinRoomBarrier(b, joined);
 
       const updated: PresencePayload = {
         roomId: "room-1",
@@ -127,6 +152,47 @@ describe("socket room presence", () => {
     } finally {
       a.disconnect();
       b.disconnect();
+      outsider.disconnect();
+      await close();
+    }
+  });
+
+  it("ignores room:presence and room:message:new from sockets outside the room", async () => {
+    const { close, url } = await startTestServer();
+    const member = io(url, { autoConnect: false, transports: ["websocket"] });
+    const outsider = io(url, { autoConnect: false, transports: ["websocket"] });
+
+    try {
+      await Promise.all([waitForConnect(member), waitForConnect(outsider)]);
+
+      const joined: PresencePayload = {
+        roomId: "room-1",
+        participant: {
+          id: "agent-codex",
+          type: "agent",
+          displayName: "Codex"
+        }
+      };
+      await joinRoomBarrier(member, joined);
+
+      const outsiderPresence: PresencePayload = {
+        roomId: "room-1",
+        participant: {
+          id: "user-outsider",
+          type: "user",
+          displayName: "Outsider"
+        }
+      };
+
+      const noPresenceForMember = expectNoEvent(member, "room:presence");
+      const noMessageForMember = expectNoEvent(member, "room:message:new");
+      outsider.emit("room:presence", outsiderPresence);
+      outsider.emit("room:message:new", { ...outsiderPresence, message: { text: "hi" } });
+
+      await expect(noPresenceForMember).resolves.toBeUndefined();
+      await expect(noMessageForMember).resolves.toBeUndefined();
+    } finally {
+      member.disconnect();
       outsider.disconnect();
       await close();
     }
