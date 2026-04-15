@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { WorkMemoryRecord, WorkMemoryStore } from "../memory/work-memory-store";
+import type { WorkMemoryMessage, WorkMemoryRecord, WorkMemoryStore } from "../memory/work-memory-store";
 import type { EventLogStore, RoomEventRecord } from "./event-log-store";
 
 export interface AppendChatMessageInput {
@@ -76,5 +76,9 @@ export class MessageService {
 
   listRoomEvents(roomId: string): RoomEventRecord[] {
     return this.eventLogStore.list(roomId);
+  }
+
+  listRoomMessages(roomId: string): WorkMemoryMessage[] {
+    return [...(this.workMemoryStore.get(roomId)?.recentMessages ?? [])];
   }
 }
