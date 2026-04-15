@@ -1,4 +1,5 @@
 export * from "./attachment";
+export * from "./bridge";
 export * from "./memory";
 export * from "./message";
 export * from "./participant";
