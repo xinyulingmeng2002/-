@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ApiClient,
@@ -6,6 +6,11 @@ import {
   type RoomRecord,
   type UploadAttachmentResponse
 } from "../../api/client";
+import {
+  createRoomSocketClient,
+  type PresenceParticipant,
+  type RoomSocketClient
+} from "../../api/socket";
 import { MessageComposer, type MessageComposerSubmit } from "../chat/message-composer";
 import { MessageList, type TimelineMessage } from "../chat/message-list";
 import { ParticipantList, type ParticipantViewModel } from "../participants/participant-list";
@@ -14,6 +19,7 @@ import { RoomList } from "./room-list";
 type RoomShellProps = {
   apiClient: ApiClient;
   speakerParticipantId?: string;
+  createSocketClient?: (baseUrl?: string) => RoomSocketClient;
 };
 
 const DEFAULT_SPACE_ID = "space-default";
@@ -40,6 +46,47 @@ function createSystemMessage(id: string, body: string): TimelineMessage {
   };
 }
 
+function createParticipantIdentity(participantId: string): PresenceParticipant {
+  return {
+    id: participantId,
+    type: inferParticipantType(participantId),
+    displayName: getParticipantDisplayName(participantId)
+  };
+}
+
+function mergeTimelineMessages(
+  current: TimelineMessage[],
+  incoming: TimelineMessage
+): TimelineMessage[] {
+  if (current.some((message) => message.id === incoming.id)) {
+    return current;
+  }
+
+  return [...current, incoming];
+}
+
+function toParticipantViewModel(participant: PresenceParticipant): ParticipantViewModel {
+  return {
+    id: participant.id,
+    displayName: participant.displayName,
+    type: participant.type === "human" ? "human" : "agent"
+  };
+}
+
+function mergeParticipants(
+  current: ParticipantViewModel[],
+  incoming: ParticipantViewModel
+): ParticipantViewModel[] {
+  const existingIndex = current.findIndex((participant) => participant.id === incoming.id);
+  if (existingIndex === -1) {
+    return [...current, incoming];
+  }
+
+  const next = [...current];
+  next[existingIndex] = incoming;
+  return next;
+}
+
 function inferParticipantType(participantId: string): ParticipantViewModel["type"] {
   if (participantId.startsWith("agent-") || participantId === "system") {
     return "agent";
@@ -62,9 +109,11 @@ function getParticipantDisplayName(participantId: string): string {
 function buildParticipants(
   room: RoomRecord | undefined,
   messages: TimelineMessage[],
-  speakerParticipantId: string
+  speakerParticipantId: string,
+  realtimeParticipants: ParticipantViewModel[]
 ): ParticipantViewModel[] {
   const seen = new Set<string>([speakerParticipantId, "agent-observer"]);
+  const nextParticipants = [...realtimeParticipants];
 
   for (const participantId of room?.participantIds ?? []) {
     seen.add(participantId);
@@ -73,22 +122,35 @@ function buildParticipants(
     seen.add(message.speakerParticipantId);
   }
 
-  return Array.from(seen).map((participantId) => ({
-    id: participantId,
-    displayName: participantId === "agent-observer" ? "Observer" : getParticipantDisplayName(participantId),
-    type: participantId === "agent-observer" ? "agent" : inferParticipantType(participantId)
-  }));
+  for (const participantId of Array.from(seen)) {
+    nextParticipants.push({
+      id: participantId,
+      displayName:
+        participantId === "agent-observer" ? "Observer" : getParticipantDisplayName(participantId),
+      type: participantId === "agent-observer" ? "agent" : inferParticipantType(participantId)
+    });
+  }
+
+  const deduped = new Map<string, ParticipantViewModel>();
+  for (const participant of nextParticipants) {
+    deduped.set(participant.id, participant);
+  }
+
+  return [...deduped.values()];
 }
 
 export function RoomShell({
   apiClient,
-  speakerParticipantId = DEFAULT_SPEAKER_PARTICIPANT_ID
+  speakerParticipantId = DEFAULT_SPEAKER_PARTICIPANT_ID,
+  createSocketClient = createRoomSocketClient
 }: RoomShellProps) {
   const [statusText, setStatusText] = useState("正在连接协作空间…");
   const [errorText, setErrorText] = useState("");
   const [rooms, setRooms] = useState<RoomRecord[]>([]);
   const [activeRoomId, setActiveRoomId] = useState("");
   const [messages, setMessages] = useState<TimelineMessage[]>([]);
+  const [realtimeParticipants, setRealtimeParticipants] = useState<ParticipantViewModel[]>([]);
+  const socketClientRef = useRef<RoomSocketClient | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,8 +236,70 @@ export function RoomShell({
     };
   }, [activeRoomId, apiClient]);
 
+  useEffect(() => {
+    setRealtimeParticipants([]);
+  }, [activeRoomId]);
+
+  useEffect(() => {
+    if (!activeRoomId || activeRoomId === "room-offline") {
+      socketClientRef.current?.dispose();
+      socketClientRef.current = null;
+      return;
+    }
+
+    if (import.meta.env.MODE === "test" && createSocketClient === createRoomSocketClient) {
+      return;
+    }
+
+    const selfParticipant = createParticipantIdentity(speakerParticipantId);
+    const socketClient = createSocketClient(import.meta.env.VITE_SERVER_ORIGIN ?? "");
+    socketClientRef.current = socketClient;
+    setRealtimeParticipants((current) =>
+      mergeParticipants(current, toParticipantViewModel(selfParticipant))
+    );
+
+    const offPresence = socketClient.onPresence((payload) => {
+      if (payload.roomId !== activeRoomId) {
+        return;
+      }
+
+      setRealtimeParticipants((current) =>
+        mergeParticipants(current, toParticipantViewModel(payload.participant))
+      );
+    });
+    const offMessage = socketClient.onMessage((payload) => {
+      if (payload.roomId !== activeRoomId) {
+        return;
+      }
+
+      setRealtimeParticipants((current) =>
+        mergeParticipants(current, toParticipantViewModel(payload.participant))
+      );
+      setMessages((current) => mergeTimelineMessages(current, normalizeEvent(payload.message)));
+    });
+
+    socketClient.joinRoom({
+      roomId: activeRoomId,
+      participant: selfParticipant
+    });
+
+    return () => {
+      offPresence();
+      offMessage();
+      socketClient.dispose();
+      if (socketClientRef.current === socketClient) {
+        socketClientRef.current = null;
+      }
+    };
+  }, [activeRoomId, createSocketClient, speakerParticipantId]);
+
   const activeRoom = rooms.find((room) => room.id === activeRoomId);
-  const participants = buildParticipants(activeRoom, messages, speakerParticipantId);
+  const participants = buildParticipants(
+    activeRoom,
+    messages,
+    speakerParticipantId,
+    realtimeParticipants
+  );
 
   async function handleSend(input: MessageComposerSubmit) {
     if (!activeRoomId) {
@@ -202,7 +326,14 @@ export function RoomShell({
       body: input.body
     });
 
-    setMessages((current) => [...current, normalizeEvent(event)]);
+    const normalizedEvent = normalizeEvent(event);
+
+    setMessages((current) => mergeTimelineMessages(current, normalizedEvent));
+    socketClientRef.current?.publishMessage({
+      roomId: activeRoomId,
+      participant: createParticipantIdentity(input.speakerParticipantId),
+      message: event
+    });
   }
 
   function handleUpload(response: UploadAttachmentResponse) {

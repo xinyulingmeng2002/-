@@ -1,24 +1,27 @@
 import { io, type Socket } from "socket.io-client";
+import type { MessageEventRecord } from "./client";
 
-type PresenceParticipant = {
+export type PresenceParticipant = {
   id: string;
   type: string;
   displayName: string;
 };
 
-type PresencePayload = {
+export type PresencePayload = {
   roomId: string;
   participant: PresenceParticipant;
 };
 
-type MessagePayload = PresencePayload & {
-  message: unknown;
+export type MessagePayload = PresencePayload & {
+  message: MessageEventRecord;
 };
 
 export type RoomSocketClient = {
   joinRoom(payload: PresencePayload): void;
   publishPresence(payload: PresencePayload): void;
   publishMessage(payload: MessagePayload): void;
+  onPresence(handler: (payload: PresencePayload) => void): () => void;
+  onMessage(handler: (payload: MessagePayload) => void): () => void;
   dispose(): void;
 };
 
@@ -38,6 +41,18 @@ export function createRoomSocketClient(baseUrl = ""): RoomSocketClient {
     },
     publishMessage(payload) {
       socket.emit("room:message:new", payload);
+    },
+    onPresence(handler) {
+      socket.on("room:presence", handler);
+      return () => {
+        socket.off("room:presence", handler);
+      };
+    },
+    onMessage(handler) {
+      socket.on("room:message:new", handler);
+      return () => {
+        socket.off("room:message:new", handler);
+      };
     },
     dispose() {
       socket.close();

@@ -88,6 +88,43 @@ describe("observer service", () => {
     }
   });
 
+  it("surfaces duplicate topic hints from Chinese messages", async () => {
+    const tempDir = createTempDir();
+    const messageService = createMessageService(tempDir);
+    const observer = new ObserverService({ messageService });
+
+    try {
+      await messageService.appendChatMessage({
+        roomId: "room-zh",
+        speakerParticipantId: "human-1",
+        body: "部署计划需要补回滚步骤。"
+      });
+      await messageService.appendChatMessage({
+        roomId: "room-zh",
+        speakerParticipantId: "agent-1",
+        body: "部署负责人还没定。"
+      });
+      await messageService.appendChatMessage({
+        roomId: "room-zh",
+        speakerParticipantId: "human-2",
+        body: "今天先补部署计划。"
+      });
+
+      const snapshot = observer.inspectRoom("room-zh");
+
+      expect(snapshot.duplicateTopicHints).toEqual(
+        expect.arrayContaining([
+          {
+            topic: "部署",
+            occurrences: 3
+          }
+        ])
+      );
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("builds a room summary stub from recent messages", async () => {
     const tempDir = createTempDir();
     const messageService = createMessageService(tempDir);

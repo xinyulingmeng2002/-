@@ -35,6 +35,7 @@ type ObserverServiceOptions = {
 const QUESTION_ENDING_PATTERN = /[?？]\s*$/;
 const TRAILING_PUNCTUATION_PATTERN = /[?!.,;:，。！？；：\s]+$/g;
 const TOKEN_SPLIT_PATTERN = /[^a-z0-9]+/i;
+const CJK_SEGMENT_PATTERN = /[\u3400-\u9fff]{2,}/g;
 const STOP_WORDS = new Set([
   "about",
   "after",
@@ -68,6 +69,7 @@ const STOP_WORDS = new Set([
   "with",
   "would"
 ]);
+const CJK_STOP_WORDS = new Set(["今天", "这个", "那个", "我们", "你们", "一下", "已经"]);
 
 function normalizeWhitespace(input: string): string {
   return input.trim().replace(/\s+/g, " ");
@@ -78,13 +80,23 @@ function normalizeQuestion(body: string): string {
 }
 
 function tokenize(body: string): string[] {
-  const tokens = body
+  const latinTokens = body
     .toLowerCase()
     .split(TOKEN_SPLIT_PATTERN)
     .map((token) => token.trim())
     .filter((token) => token.length >= 4 && !STOP_WORDS.has(token));
 
-  return [...new Set(tokens)];
+  const cjkTokens: string[] = [];
+  for (const segment of body.match(CJK_SEGMENT_PATTERN) ?? []) {
+    for (let index = 0; index <= segment.length - 2; index += 1) {
+      const token = segment.slice(index, index + 2);
+      if (!CJK_STOP_WORDS.has(token)) {
+        cjkTokens.push(token);
+      }
+    }
+  }
+
+  return [...new Set([...latinTokens, ...cjkTokens])];
 }
 
 function buildRepeatedQuestions(messages: WorkMemoryMessage[]): RepeatedQuestionDetection[] {
