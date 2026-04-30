@@ -271,4 +271,70 @@ describe("memory candidates api", () => {
       cleanupTempDir(tempDir);
     }
   });
+
+  it("does not duplicate shared knowledge when the same candidate is accepted twice", async () => {
+    const tempDir = createTempDir();
+    const candidateStore = createMemoryCandidateStore(tempDir);
+    const eventLogStore = createEventLogStore(tempDir);
+    const app = buildServer({ dataDir: tempDir });
+
+    candidateStore.create({
+      candidateId: "cand-4",
+      roomId: "room-4",
+      scope: "shared",
+      candidateType: "decision",
+      title: "Keep acceptance idempotent",
+      body: "Do not duplicate shared knowledge on repeated review clicks.",
+      status: "proposed",
+      proposedBy: "observer",
+      sourceEventIds: ["evt-4"],
+      sourceMemoryIds: [],
+      targetAgentId: null,
+      createdAt: "2026-04-30T00:00:00.000Z",
+      reviewedAt: null,
+      reviewedBy: null,
+      acceptedInto: []
+    });
+
+    try {
+      const firstAccept = await app.inject({
+        method: "POST",
+        url: "/api/memory-candidates/cand-4/accept",
+        payload: {
+          reviewedBy: "human-1"
+        }
+      });
+      const secondAccept = await app.inject({
+        method: "POST",
+        url: "/api/memory-candidates/cand-4/accept",
+        payload: {
+          reviewedBy: "human-1"
+        }
+      });
+
+      expect(firstAccept.statusCode).toBe(200);
+      expect(secondAccept.statusCode).toBe(200);
+
+      const knowledge = await app.inject({
+        method: "GET",
+        url: "/api/shared-knowledge?roomId=room-4"
+      });
+
+      expect(knowledge.statusCode).toBe(200);
+      expect(knowledge.json().items).toHaveLength(1);
+      expect(knowledge.json().items[0]).toEqual(
+        expect.objectContaining({
+          sourceCandidateId: "cand-4",
+          sourceEventIds: ["evt-4"]
+        })
+      );
+
+      expect(
+        eventLogStore.list("room-4").filter((event) => event.kind === "memory.candidate.accepted")
+      ).toHaveLength(1);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
 });

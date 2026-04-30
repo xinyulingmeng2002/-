@@ -76,6 +76,9 @@ export class MemoryReviewService {
     if (!existing) {
       return null;
     }
+    if (existing.status === "accepted") {
+      return existing;
+    }
 
     const reviewedAt = this.timestamp();
     const nextWorkMemory = this.applyCandidateToWorkMemory(existing, reviewedAt);
