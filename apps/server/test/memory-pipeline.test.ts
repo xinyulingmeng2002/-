@@ -97,4 +97,39 @@ describe("memory pipeline service", () => {
       cleanupTempDir(tempDir);
     }
   });
+
+  it("does not leave shared candidates behind when private memory persistence fails", async () => {
+    const tempDir = createTempDir();
+    const messageService = createMessageService(tempDir);
+    const memoryCandidateStore = createMemoryCandidateStore(tempDir);
+    const pipeline = new MemoryPipelineService({
+      observerService: new ObserverService({ messageService }),
+      memoryCandidateStore,
+      privateMemoryStore: {
+        list() {
+          return [];
+        },
+        get() {
+          return null;
+        },
+        create() {
+          throw new Error("disk_full");
+        }
+      },
+      now: () => new Date("2026-04-30T12:00:02.000Z")
+    });
+
+    try {
+      const event = await messageService.appendChatMessage({
+        roomId: "room-3",
+        speakerParticipantId: "agent-codex",
+        body: "Remember: we need a deployment checklist before rollout."
+      });
+
+      expect(() => pipeline.processEvent(event)).toThrow("disk_full");
+      expect(memoryCandidateStore.list({ roomId: "room-3" })).toEqual([]);
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
 });

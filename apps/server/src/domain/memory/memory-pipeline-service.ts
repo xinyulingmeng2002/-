@@ -35,8 +35,9 @@ export class MemoryPipelineService {
       return { candidates: [], privateMemories: [] };
     }
 
-    const candidates = this.observerService.suggestCandidates(event.roomId).map((suggestion) =>
-      this.memoryCandidateStore.create({
+    const candidateDrafts: MemoryCandidateRecord[] = this.observerService
+      .suggestCandidates(event.roomId)
+      .map((suggestion) => ({
         candidateId: `cand_${randomUUID()}`,
         roomId: event.roomId,
         scope: "shared",
@@ -52,10 +53,10 @@ export class MemoryPipelineService {
         reviewedAt: null,
         reviewedBy: null,
         acceptedInto: []
-      })
-    );
+      }));
 
     const privateMemories = this.buildPrivateMemories(event);
+    const candidates = candidateDrafts.map((candidate) => this.memoryCandidateStore.create(candidate));
 
     return {
       candidates,
