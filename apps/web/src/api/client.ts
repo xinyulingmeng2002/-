@@ -19,6 +19,7 @@ export type MessageEventRecord = {
     messageId?: string;
     speakerParticipantId?: string;
     body?: string;
+    attachments?: AttachmentRecord[];
   };
 };
 
@@ -27,6 +28,9 @@ export type AttachmentRecord = {
   messageId: string;
   kind: "image" | "file" | "link";
   url: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
 };
 
 export type UploadAttachmentResponse = {
@@ -141,6 +145,7 @@ export class ApiClient {
     roomId: string;
     speakerParticipantId: string;
     body: string;
+    attachments?: AttachmentRecord[];
   }): Promise<MessageEventRecord> {
     return this.request<MessageEventRecord>("/api/messages", {
       method: "POST",

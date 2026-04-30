@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "../api/client";
@@ -155,5 +155,113 @@ describe("RoomShell", () => {
 
     expect(await screen.findByText("来自实时链路")).toBeInTheDocument();
     expect((await screen.findAllByText(/Room room-1 has 2 messages/)).length).toBeGreaterThan(0);
+  });
+
+  it("uploads a file as a formal attachment message instead of a system URL notice", async () => {
+    const createMessage = vi.fn().mockResolvedValue({
+      eventId: "evt-upload-1",
+      kind: "message.created",
+      roomId: "room-1",
+      timestamp: "2026-04-30T11:00:00.000Z",
+      payload: {
+        messageId: "msg-upload-1",
+        speakerParticipantId: "human-1",
+        body: "",
+        attachments: [
+          {
+            id: "att-upload-1",
+            messageId: "msg-upload-1",
+            kind: "image",
+            url: "https://example.com/uploads/diagram.png",
+            name: "diagram.png",
+            mimeType: "image/png",
+            sizeBytes: 2048
+          }
+        ]
+      }
+    });
+
+    const apiClient = {
+      listSpaces: vi.fn().mockResolvedValue([{ id: "space-default", name: "默认空间" }]),
+      listRooms: vi.fn().mockResolvedValue([
+        {
+          id: "room-1",
+          spaceId: "space-default",
+          name: "主协作间",
+          participantIds: []
+        }
+      ]),
+      createRoom: vi.fn(),
+      listMessages: vi.fn().mockResolvedValue([]),
+      createMessage,
+      uploadFile: vi.fn().mockResolvedValue({
+        attachment: {
+          id: "att-upload-1",
+          messageId: "",
+          kind: "image",
+          url: "https://example.com/uploads/diagram.png",
+          name: "diagram.png",
+          mimeType: "image/png",
+          sizeBytes: 2048
+        },
+        originalName: "diagram.png",
+        mimeType: "image/png",
+        sizeBytes: 2048
+      }),
+      listParticipants: vi.fn().mockResolvedValue([]),
+      listBridgeTokens: vi.fn().mockResolvedValue([]),
+      createBridgeToken: vi.fn(),
+      revokeBridgeToken: vi.fn(),
+      listBridgeSessions: vi.fn().mockResolvedValue([]),
+      listRoomSummaries: vi.fn().mockResolvedValue([])
+    } as unknown as ApiClient;
+
+    const { container } = render(
+      <RoomShell
+        apiClient={apiClient}
+        createSocketClient={() => ({
+          joinRoom: vi.fn(),
+          publishPresence: vi.fn(),
+          publishMessage: vi.fn(),
+          onPresence: () => () => undefined,
+          onMessage: () => () => undefined,
+          dispose: vi.fn()
+        })}
+      />
+    );
+
+    expect(await screen.findByText("已接入默认协作空间")).toBeInTheDocument();
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+
+    await act(async () => {
+      fireEvent.change(fileInput as HTMLInputElement, {
+        target: {
+          files: [new File(["fake image"], "diagram.png", { type: "image/png" })]
+        }
+      });
+    });
+
+    await waitFor(() => {
+      expect(createMessage).toHaveBeenCalledWith({
+        roomId: "room-1",
+        speakerParticipantId: "human-1",
+        body: "",
+        attachments: [
+          expect.objectContaining({
+            id: "att-upload-1",
+            kind: "image",
+            url: "https://example.com/uploads/diagram.png",
+            name: "diagram.png",
+            mimeType: "image/png",
+            sizeBytes: 2048
+          })
+        ]
+      });
+    });
+
+    expect(await screen.findByText("diagram.png")).toBeInTheDocument();
+    expect(screen.queryByText(/已上传/)).not.toBeInTheDocument();
   });
 });

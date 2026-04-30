@@ -8,6 +8,17 @@ export interface AppendChatMessageInput {
   roomId: string;
   speakerParticipantId: string;
   body: string;
+  attachments?: MessageAttachmentInput[];
+}
+
+export interface MessageAttachmentInput {
+  id: string;
+  messageId: string;
+  kind: "image" | "file" | "link";
+  url: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
 }
 
 type MessageServiceOptions = {
@@ -42,6 +53,10 @@ export class MessageService {
   async appendChatMessage(input: AppendChatMessageInput): Promise<RoomEventRecord> {
     const timestamp = this.now().toISOString();
     const messageId = `msg_${randomUUID()}`;
+    const attachments = input.attachments?.map((attachment) => ({
+      ...attachment,
+      messageId
+    }));
     const event: RoomEventRecord = {
       eventId: `evt_${randomUUID()}`,
       kind: "message.created",
@@ -50,7 +65,8 @@ export class MessageService {
       payload: {
         messageId,
         speakerParticipantId: input.speakerParticipantId,
-        body: input.body
+        body: input.body,
+        ...(attachments ? { attachments } : {})
       }
     };
 

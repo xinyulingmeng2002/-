@@ -29,17 +29,31 @@ describe("uploads api", () => {
           messageId: string;
           kind: string;
           url: string;
+          name: string;
+          mimeType: string;
+          sizeBytes: number;
         };
         originalName: string;
       };
       expect(body).toMatchObject({
         attachment: {
           kind: "image",
-          messageId: ""
+          messageId: "",
+          name: "diagram.png",
+          mimeType: "image/png",
+          sizeBytes: pngBuffer.byteLength
         },
         originalName: "diagram.png"
       });
-      expect(Object.keys(body.attachment).sort()).toEqual(["id", "kind", "messageId", "url"]);
+      expect(Object.keys(body.attachment).sort()).toEqual([
+        "id",
+        "kind",
+        "messageId",
+        "mimeType",
+        "name",
+        "sizeBytes",
+        "url"
+      ]);
 
       const attachmentUrl = new URL(body.attachment.url);
       expect(attachmentUrl.protocol).toBe("http:");

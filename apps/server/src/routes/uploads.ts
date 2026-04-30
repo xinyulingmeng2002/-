@@ -80,7 +80,10 @@ export const uploadsRoutes: FastifyPluginAsync<UploadsRoutesOptions> = async (ap
           id,
           messageId: "",
           kind: getAttachmentKind(file.mimetype),
-          url: `${absoluteBaseUrl}/${year}/${month}/${storedName}`
+          url: `${absoluteBaseUrl}/${year}/${month}/${storedName}`,
+          name: originalName,
+          mimeType: file.mimetype,
+          sizeBytes: content.byteLength
         },
         originalName,
         mimeType: file.mimetype,

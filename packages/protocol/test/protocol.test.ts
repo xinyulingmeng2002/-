@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { messageSchema, participantSchema } from "../src";
+import { attachmentSchema, messageSchema, participantSchema } from "../src";
 
 describe("protocol schemas", () => {
   it("rejects participants without a concrete type", () => {
@@ -33,6 +33,17 @@ describe("protocol schemas", () => {
         body: "hi",
         extra: true
       }),
+    ).toThrow();
+  });
+
+  it("requires display metadata on attachments", () => {
+    expect(() =>
+      attachmentSchema.parse({
+        id: "att-1",
+        messageId: "",
+        kind: "image",
+        url: "https://example.com/file.png"
+      })
     ).toThrow();
   });
 });

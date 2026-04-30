@@ -16,6 +16,7 @@ dist/
 build/
 .next/
 coverage/
+.superpowers/
 
 # OS / editor
 .DS_Store

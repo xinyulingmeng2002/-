@@ -152,6 +152,81 @@ body {
   white-space: pre-wrap;
 }
 
+.message-card__attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.attachment-card {
+  border: 1px solid rgba(75, 103, 173, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  overflow: hidden;
+}
+
+.attachment-card--image {
+  display: flex;
+  flex-direction: column;
+}
+
+.attachment-card__preview {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  background: linear-gradient(180deg, rgba(232, 238, 255, 0.92), rgba(247, 249, 255, 0.92));
+}
+
+.attachment-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+}
+
+.attachment-card__meta strong {
+  display: block;
+  color: #1d2840;
+}
+
+.attachment-card__meta span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7792;
+}
+
+.attachment-card__meta a {
+  color: #1a4ad9;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.attachment-card--file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.attachment-card__file-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  height: 56px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(201, 215, 255, 0.9), rgba(239, 244, 255, 0.95));
+  color: #38518f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .speaker-chip {
   display: inline-flex;
   align-items: center;

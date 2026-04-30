@@ -45,7 +45,8 @@ function normalizeEvent(event: MessageEventRecord): TimelineMessage {
     kind: event.kind === "message.created" ? "chat" : "system",
     body: event.payload.body ?? "",
     speakerParticipantId: event.payload.speakerParticipantId ?? "system",
-    timestamp: event.timestamp
+    timestamp: event.timestamp,
+    attachments: event.payload.attachments
   };
 }
 
@@ -442,14 +443,26 @@ export function RoomShell({
     await refreshAgentPanel(activeRoomId);
   }
 
-  function handleUpload(response: UploadAttachmentResponse) {
-    setMessages((current) => [
-      ...current,
-      createSystemMessage(
-        `upload-${response.attachment.id}`,
-        `已上传 ${response.originalName}，可通过 ${response.attachment.url} 访问。`
-      )
-    ]);
+  async function handleUpload(response: UploadAttachmentResponse) {
+    if (!activeRoomId || activeRoomId === "room-offline") {
+      return;
+    }
+
+    const event = await apiClient.createMessage({
+      roomId: activeRoomId,
+      speakerParticipantId,
+      body: "",
+      attachments: [response.attachment]
+    });
+
+    const normalizedEvent = normalizeEvent(event);
+    setMessages((current) => mergeTimelineMessages(current, normalizedEvent));
+    socketClientRef.current?.publishMessage({
+      roomId: activeRoomId,
+      participant: createParticipantIdentity(speakerParticipantId),
+      message: event
+    });
+    await refreshAgentPanel(activeRoomId);
   }
 
   async function handleCreateToken(input: {

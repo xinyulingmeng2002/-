@@ -92,6 +92,61 @@ describe("messages api", () => {
     }
   });
 
+  it("creates a canonical attachment message with an empty body", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        payload: {
+          roomId: "room-1",
+          speakerParticipantId: "human-1",
+          body: "",
+          attachments: [
+            {
+              id: "att-1",
+              messageId: "",
+              kind: "image",
+              url: "https://example.com/uploads/diagram.png",
+              name: "diagram.png",
+              mimeType: "image/png",
+              sizeBytes: 2048
+            }
+          ]
+        }
+      });
+
+      expect(created.statusCode).toBe(201);
+      expect(created.json()).toEqual(
+        expect.objectContaining({
+          kind: "message.created",
+          payload: expect.objectContaining({
+            body: "",
+            attachments: [
+              expect.objectContaining({
+                id: "att-1",
+                kind: "image",
+                url: "https://example.com/uploads/diagram.png",
+                name: "diagram.png",
+                mimeType: "image/png",
+                sizeBytes: 2048,
+                messageId: expect.any(String)
+              })
+            ]
+          })
+        })
+      );
+
+      const event = created.json();
+      expect(event.payload.attachments[0].messageId).toBe(event.payload.messageId);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("rejects unsafe roomId in create message request", async () => {
     const tempDir = createTempDir();
     const app = buildServer({ dataDir: tempDir });
@@ -108,6 +163,32 @@ describe("messages api", () => {
       });
 
       expect(created.statusCode).toBe(400);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("rejects a message when both body and attachments are empty", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        payload: {
+          roomId: "room-1",
+          speakerParticipantId: "human-1",
+          body: "",
+          attachments: []
+        }
+      });
+
+      expect(created.statusCode).toBe(400);
+      expect(created.json()).toEqual({
+        error: "body or attachments are required"
+      });
     } finally {
       await app.close();
       cleanupTempDir(tempDir);
