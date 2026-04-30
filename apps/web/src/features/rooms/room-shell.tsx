@@ -5,10 +5,13 @@ import {
   type BridgeSessionRecord,
   type BridgeTokenCreateResponse,
   type BridgeTokenRecord,
+  type MemoryCandidateRecord,
   type MessageEventRecord,
   type ParticipantRecord,
   type RoomRecord,
   type RoomSummaryRecord,
+  type SharedKnowledgeRecord,
+  type WorkMemoryRecord,
   type UploadAttachmentResponse
 } from "../../api/client";
 import {
@@ -32,6 +35,9 @@ type AgentPanelData = {
   directoryParticipants: ParticipantRecord[];
   bridgeSessions: BridgeSessionRecord[];
   bridgeTokens: BridgeTokenRecord[];
+  memoryCandidates: MemoryCandidateRecord[];
+  sharedKnowledge: SharedKnowledgeRecord[];
+  workMemory: WorkMemoryRecord | null;
   roomSummaries: RoomSummaryRecord[];
 };
 
@@ -121,17 +127,32 @@ function getParticipantDisplayName(participantId: string): string {
 }
 
 async function loadAgentPanelData(apiClient: ApiClient, roomId: string): Promise<AgentPanelData> {
-  const [directoryParticipants, bridgeSessions, bridgeTokens, roomSummaries] = await Promise.all([
-    apiClient.listParticipants(),
-    apiClient.listBridgeSessions(),
-    apiClient.listBridgeTokens(),
-    apiClient.listRoomSummaries(roomId)
-  ]);
+  const [
+    directoryParticipants,
+    bridgeSessions,
+    bridgeTokens,
+    memoryCandidates,
+    sharedKnowledge,
+    workMemory,
+    roomSummaries
+  ] =
+    await Promise.all([
+      apiClient.listParticipants(),
+      apiClient.listBridgeSessions(),
+      apiClient.listBridgeTokens(),
+      apiClient.listMemoryCandidates({ roomId, scope: "shared", status: "proposed" }),
+      apiClient.listSharedKnowledge({ roomId }),
+      apiClient.getWorkMemory(roomId),
+      apiClient.listRoomSummaries(roomId)
+    ]);
 
   return {
     directoryParticipants,
     bridgeSessions,
     bridgeTokens,
+    memoryCandidates,
+    sharedKnowledge,
+    workMemory,
     roomSummaries
   };
 }
@@ -201,6 +222,9 @@ export function RoomShell({
   const [directoryParticipants, setDirectoryParticipants] = useState<ParticipantRecord[]>([]);
   const [bridgeSessions, setBridgeSessions] = useState<BridgeSessionRecord[]>([]);
   const [bridgeTokens, setBridgeTokens] = useState<BridgeTokenRecord[]>([]);
+  const [memoryCandidates, setMemoryCandidates] = useState<MemoryCandidateRecord[]>([]);
+  const [sharedKnowledge, setSharedKnowledge] = useState<SharedKnowledgeRecord[]>([]);
+  const [workMemory, setWorkMemory] = useState<WorkMemoryRecord | null>(null);
   const [roomSummaries, setRoomSummaries] = useState<RoomSummaryRecord[]>([]);
   const socketClientRef = useRef<RoomSocketClient | null>(null);
 
@@ -293,6 +317,9 @@ export function RoomShell({
       setDirectoryParticipants([]);
       setBridgeSessions([]);
       setBridgeTokens([]);
+      setMemoryCandidates([]);
+      setSharedKnowledge([]);
+      setWorkMemory(null);
       setRoomSummaries([]);
       return;
     }
@@ -309,6 +336,9 @@ export function RoomShell({
         setDirectoryParticipants(data.directoryParticipants);
         setBridgeSessions(data.bridgeSessions);
         setBridgeTokens(data.bridgeTokens);
+        setMemoryCandidates(data.memoryCandidates);
+        setSharedKnowledge(data.sharedKnowledge);
+        setWorkMemory(data.workMemory);
         setRoomSummaries(data.roomSummaries);
         setPanelErrorText("");
       } catch {
@@ -403,6 +433,9 @@ export function RoomShell({
     setDirectoryParticipants(data.directoryParticipants);
     setBridgeSessions(data.bridgeSessions);
     setBridgeTokens(data.bridgeTokens);
+    setMemoryCandidates(data.memoryCandidates);
+    setSharedKnowledge(data.sharedKnowledge);
+    setWorkMemory(data.workMemory);
     setRoomSummaries(data.roomSummaries);
     setPanelErrorText("");
   }
@@ -480,6 +513,16 @@ export function RoomShell({
     await refreshAgentPanel(activeRoomId);
   }
 
+  async function handleAcceptCandidate(candidateId: string): Promise<void> {
+    await apiClient.acceptMemoryCandidate(candidateId, speakerParticipantId);
+    await refreshAgentPanel(activeRoomId);
+  }
+
+  async function handleRejectCandidate(candidateId: string): Promise<void> {
+    await apiClient.rejectMemoryCandidate(candidateId, speakerParticipantId);
+    await refreshAgentPanel(activeRoomId);
+  }
+
   return (
     <div className="app-shell">
       <aside className="app-panel app-panel--rooms">
@@ -535,9 +578,14 @@ export function RoomShell({
             participants={directoryParticipants}
             sessions={bridgeSessions}
             tokens={bridgeTokens}
+            candidates={memoryCandidates}
+            sharedKnowledge={sharedKnowledge}
+            workMemory={workMemory}
             latestSummary={latestSummary}
             onCreateToken={handleCreateToken}
             onRevokeToken={handleRevokeToken}
+            onAcceptCandidate={handleAcceptCandidate}
+            onRejectCandidate={handleRejectCandidate}
           />
         </div>
       </aside>

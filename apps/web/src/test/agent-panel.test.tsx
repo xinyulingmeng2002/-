@@ -1,10 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AgentPanel } from "../features/agents/agent-panel";
 
 describe("AgentPanel", () => {
-  it("renders online agents and bridge token actions", async () => {
+  it("renders online agents, bridge token actions, and candidate review actions", async () => {
+    const onAcceptCandidate = vi.fn().mockResolvedValue(undefined);
+    const onRejectCandidate = vi.fn().mockResolvedValue(undefined);
+
     render(
       <AgentPanel
         activeRoomId="room-1"
@@ -32,6 +35,50 @@ describe("AgentPanel", () => {
           }
         ]}
         tokens={[]}
+        candidates={[
+          {
+            candidateId: "cand-1",
+            roomId: "room-1",
+            scope: "shared",
+            candidateType: "todo",
+            title: "补 rollout checklist",
+            body: "We need a rollout checklist before release.",
+            status: "proposed",
+            proposedBy: "observer",
+            sourceEventIds: ["evt-1"],
+            sourceMemoryIds: [],
+            targetAgentId: null,
+            createdAt: "2026-04-15T12:00:00.000Z",
+            reviewedAt: null,
+            reviewedBy: null,
+            acceptedInto: []
+          }
+        ]}
+        sharedKnowledge={[
+          {
+            knowledgeId: "know-1",
+            spaceId: "space-default",
+            roomId: "room-1",
+            kind: "decision",
+            title: "采用候选审核",
+            body: "Route private sharing through candidate review.",
+            keywords: ["review"],
+            sourceCandidateId: "cand-1",
+            sourceEventIds: ["evt-1"],
+            createdAt: "2026-04-15T12:10:00.000Z",
+            updatedAt: "2026-04-15T12:10:00.000Z"
+          }
+        ]}
+        workMemory={{
+          roomId: "room-1",
+          recentMessages: [],
+          activeParticipantIds: ["human-1", "agent-codex"],
+          todoItems: ["补工作记忆面板"],
+          blockerItems: ["等待审核反馈"],
+          decisionItems: ["先做共享层 UI"],
+          lastSummaryDraftId: "cand-summary-1",
+          updatedAt: "2026-04-15T12:10:00.000Z"
+        }}
         latestSummary={null}
         onCreateToken={vi.fn().mockResolvedValue({
           token: "secret-token",
@@ -45,10 +92,32 @@ describe("AgentPanel", () => {
           }
         })}
         onRevokeToken={vi.fn().mockResolvedValue(undefined)}
+        onAcceptCandidate={onAcceptCandidate}
+        onRejectCandidate={onRejectCandidate}
       />
     );
 
     expect(screen.getAllByText("Codex").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "创建接入令牌" })).toBeInTheDocument();
+    expect(screen.getByText("候选审核")).toBeInTheDocument();
+    expect(screen.getByText("补 rollout checklist")).toBeInTheDocument();
+    expect(screen.getByText("共享知识")).toBeInTheDocument();
+    expect(screen.getByText("采用候选审核")).toBeInTheDocument();
+    expect(screen.getByText("当前工作记忆")).toBeInTheDocument();
+    expect(screen.getByText("补工作记忆面板")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "接受" }));
+    });
+    await waitFor(() => {
+      expect(onAcceptCandidate).toHaveBeenCalledWith("cand-1");
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "拒绝" }));
+    });
+    await waitFor(() => {
+      expect(onRejectCandidate).toHaveBeenCalledWith("cand-1");
+    });
   });
 });

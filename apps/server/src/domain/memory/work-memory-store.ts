@@ -10,10 +10,14 @@ export type WorkMemoryMessage = {
 };
 
 export type WorkMemoryRecord = {
+  roomId: string;
   recentMessages: WorkMemoryMessage[];
   activeParticipantIds: string[];
-  lastDecisionSummary: string;
   todoItems: string[];
+  blockerItems: string[];
+  decisionItems: string[];
+  lastSummaryDraftId: string | null;
+  updatedAt: string;
 };
 
 type WorkMemorySnapshot = {
@@ -23,6 +27,19 @@ type WorkMemorySnapshot = {
 export interface WorkMemoryStore {
   get(roomId: string): WorkMemoryRecord | undefined;
   set(roomId: string, memory: WorkMemoryRecord): void;
+}
+
+export function createEmptyWorkMemory(roomId: string, updatedAt = ""): WorkMemoryRecord {
+  return {
+    roomId,
+    recentMessages: [],
+    activeParticipantIds: [],
+    todoItems: [],
+    blockerItems: [],
+    decisionItems: [],
+    lastSummaryDraftId: null,
+    updatedAt
+  };
 }
 
 function getWorkMemoryPath(dataDir?: string): string {

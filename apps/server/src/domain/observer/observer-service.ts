@@ -28,6 +28,12 @@ export type ObserverSnapshot = {
   roomSummary: RoomSummaryStub;
 };
 
+export type ObserverCandidateSuggestion = {
+  candidateType: "summary" | "todo" | "blocker" | "decision";
+  title: string;
+  body: string;
+};
+
 type ObserverServiceOptions = {
   messageService: MessageReader;
 };
@@ -70,6 +76,7 @@ const STOP_WORDS = new Set([
   "would"
 ]);
 const CJK_STOP_WORDS = new Set(["今天", "这个", "那个", "我们", "你们", "一下", "已经"]);
+const TODO_PATTERNS = [/\bneed\b/i, /\bneeds\b/i, /\bshould\b/i, /需要/, /要/, /待办/];
 
 function normalizeWhitespace(input: string): string {
   return input.trim().replace(/\s+/g, " ");
@@ -171,6 +178,25 @@ function buildRoomSummary(roomId: string, messages: WorkMemoryMessage[]): RoomSu
   };
 }
 
+function buildCandidateSuggestions(messages: WorkMemoryMessage[]): ObserverCandidateSuggestion[] {
+  const latestMessage = messages.at(-1);
+  if (!latestMessage) {
+    return [];
+  }
+
+  if (TODO_PATTERNS.some((pattern) => pattern.test(latestMessage.body))) {
+    return [
+      {
+        candidateType: "todo",
+        title: latestMessage.body.slice(0, 80),
+        body: latestMessage.body
+      }
+    ];
+  }
+
+  return [];
+}
+
 export class ObserverService {
   private readonly messageService: MessageReader;
 
@@ -186,5 +212,9 @@ export class ObserverService {
       duplicateTopicHints: buildDuplicateTopicHints(messages),
       roomSummary: buildRoomSummary(roomId, messages)
     };
+  }
+
+  suggestCandidates(roomId: string): ObserverCandidateSuggestion[] {
+    return buildCandidateSuggestions(this.messageService.listRoomMessages(roomId));
   }
 }

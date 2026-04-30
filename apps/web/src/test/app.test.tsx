@@ -76,6 +76,22 @@ vi.mock("../api/client", () => {
       return [];
     }
 
+    async listMemoryCandidates() {
+      return [];
+    }
+
+    async acceptMemoryCandidate() {
+      throw new Error("not implemented in test");
+    }
+
+    async rejectMemoryCandidate() {
+      throw new Error("not implemented in test");
+    }
+
+    async listSharedKnowledge() {
+      return [];
+    }
+
     async listRoomSummaries() {
       return [];
     }

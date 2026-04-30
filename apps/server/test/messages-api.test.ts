@@ -45,7 +45,24 @@ describe("message service", () => {
 
     expect(calls).toEqual(["eventLog.append", "workMemory.get", "workMemory.set"]);
     expect(events).toHaveLength(1);
+    expect(events[0]).toEqual(
+      expect.objectContaining({
+        spaceId: "space-default",
+        actorParticipantId: "human-1",
+        source: "human",
+        causationId: null,
+        correlationId: null
+      })
+    );
     expect(memoryByRoom["room-1"]?.recentMessages[0]?.body).toBe("今天先把房间打通");
+    expect(memoryByRoom["room-1"]).toEqual(
+      expect.objectContaining({
+        roomId: "room-1",
+        blockerItems: [],
+        decisionItems: [],
+        lastSummaryDraftId: null
+      })
+    );
   });
 });
 
@@ -69,7 +86,12 @@ describe("messages api", () => {
       expect(created.json()).toEqual(
         expect.objectContaining({
           kind: "message.created",
-          roomId: "room-1"
+          roomId: "room-1",
+          spaceId: "space-default",
+          actorParticipantId: "human-1",
+          source: "human",
+          causationId: null,
+          correlationId: null
         })
       );
 
@@ -83,7 +105,10 @@ describe("messages api", () => {
       expect(listed.json().items[0]).toEqual(
         expect.objectContaining({
           kind: "message.created",
-          roomId: "room-1"
+          roomId: "room-1",
+          spaceId: "space-default",
+          actorParticipantId: "human-1",
+          source: "human"
         })
       );
     } finally {
@@ -274,10 +299,15 @@ describe("event log store", () => {
     try {
       store.append({
         eventId: "evt_1",
+        spaceId: "space-default",
         kind: "message.created",
         roomId,
+        actorParticipantId: "human-1",
         timestamp: "2026-04-15T12:00:00.000Z",
-        payload: { body: "ok" }
+        payload: { body: "ok" },
+        source: "human",
+        causationId: null,
+        correlationId: null
       });
       appendFileSync(logPath, "{\"eventId\":\"evt_2\"", "utf8");
 

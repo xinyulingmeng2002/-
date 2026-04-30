@@ -47,6 +47,52 @@ describe("RoomShell", () => {
           expiresAt: "2026-04-15T12:02:00.000Z"
         }
       ]),
+      listMemoryCandidates: vi.fn().mockResolvedValue([
+        {
+          candidateId: "cand-1",
+          roomId: "room-1",
+          scope: "shared",
+          candidateType: "todo",
+          title: "补 rollout checklist",
+          body: "We need a rollout checklist before release.",
+          status: "proposed",
+          proposedBy: "observer",
+          sourceEventIds: ["evt-1"],
+          sourceMemoryIds: [],
+          targetAgentId: null,
+          createdAt: "2026-04-15T12:00:00.000Z",
+          reviewedAt: null,
+          reviewedBy: null,
+          acceptedInto: []
+        }
+      ]),
+      listSharedKnowledge: vi.fn().mockResolvedValue([
+        {
+          knowledgeId: "know-1",
+          spaceId: "space-default",
+          roomId: "room-1",
+          kind: "decision",
+          title: "采用候选审核",
+          body: "Route private sharing through candidate review.",
+          keywords: ["review"],
+          sourceCandidateId: "cand-1",
+          sourceEventIds: ["evt-1"],
+          createdAt: "2026-04-15T12:10:00.000Z",
+          updatedAt: "2026-04-15T12:10:00.000Z"
+        }
+      ]),
+      getWorkMemory: vi.fn().mockResolvedValue({
+        roomId: "room-1",
+        recentMessages: [],
+        activeParticipantIds: ["human-1", "agent-realtime"],
+        todoItems: ["补工作记忆面板"],
+        blockerItems: ["等待审核反馈"],
+        decisionItems: ["先做共享层 UI"],
+        lastSummaryDraftId: "cand-summary-1",
+        updatedAt: "2026-04-15T12:10:00.000Z"
+      }),
+      acceptMemoryCandidate: vi.fn(),
+      rejectMemoryCandidate: vi.fn(),
       listRoomSummaries: vi.fn().mockResolvedValue([
         {
           roomId: "room-1",
@@ -155,6 +201,14 @@ describe("RoomShell", () => {
 
     expect(await screen.findByText("来自实时链路")).toBeInTheDocument();
     expect((await screen.findAllByText(/Room room-1 has 2 messages/)).length).toBeGreaterThan(0);
+    expect(await screen.findByText("候选审核")).toBeInTheDocument();
+    expect(await screen.findByText("补 rollout checklist")).toBeInTheDocument();
+    expect(await screen.findByText("共享知识")).toBeInTheDocument();
+    expect(await screen.findByText("采用候选审核")).toBeInTheDocument();
+    expect(await screen.findByText("当前工作记忆")).toBeInTheDocument();
+    expect(await screen.findByText("补工作记忆面板")).toBeInTheDocument();
+    expect(await screen.findByText("等待审核反馈")).toBeInTheDocument();
+    expect(await screen.findByText("先做共享层 UI")).toBeInTheDocument();
   });
 
   it("uploads a file as a formal attachment message instead of a system URL notice", async () => {
@@ -213,6 +267,20 @@ describe("RoomShell", () => {
       createBridgeToken: vi.fn(),
       revokeBridgeToken: vi.fn(),
       listBridgeSessions: vi.fn().mockResolvedValue([]),
+      listMemoryCandidates: vi.fn().mockResolvedValue([]),
+      listSharedKnowledge: vi.fn().mockResolvedValue([]),
+      getWorkMemory: vi.fn().mockResolvedValue({
+        roomId: "room-1",
+        recentMessages: [],
+        activeParticipantIds: [],
+        todoItems: [],
+        blockerItems: [],
+        decisionItems: [],
+        lastSummaryDraftId: null,
+        updatedAt: "2026-04-30T00:00:00.000Z"
+      }),
+      acceptMemoryCandidate: vi.fn(),
+      rejectMemoryCandidate: vi.fn(),
       listRoomSummaries: vi.fn().mockResolvedValue([])
     } as unknown as ApiClient;
 

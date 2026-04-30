@@ -352,7 +352,9 @@ body {
 }
 
 .agent-status-list,
-.token-list {
+.token-list,
+.candidate-list,
+.knowledge-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -360,6 +362,8 @@ body {
 
 .agent-status-card,
 .token-card,
+.candidate-card,
+.knowledge-card,
 .summary-card {
   padding: 14px;
   border-radius: 18px;
@@ -375,6 +379,8 @@ body {
 
 .agent-status-card p,
 .token-card p,
+.candidate-card p,
+.knowledge-card p,
 .summary-card p {
   margin: 6px 0 0;
   color: #5f6d89;
@@ -382,7 +388,36 @@ body {
 }
 
 .agent-status-card__meta,
-.token-card__actions {
+.token-card__actions,
+.candidate-card__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  font-size: 12px;
+  color: #6d7892;
+}
+
+.candidate-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.candidate-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.knowledge-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.knowledge-card__meta {
   display: flex;
   flex-direction: column;
   align-items: flex-end;

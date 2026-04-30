@@ -3,10 +3,15 @@ import { dirname, join } from "node:path";
 
 export type RoomEventRecord = {
   eventId: string;
+  spaceId: string;
   kind: string;
   roomId: string;
+  actorParticipantId: string;
   timestamp: string;
   payload: Record<string, unknown>;
+  source: "human" | "agent" | "bridge" | "system" | "observer";
+  causationId: string | null;
+  correlationId: string | null;
 };
 
 export interface EventLogStore {

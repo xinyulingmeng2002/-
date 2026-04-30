@@ -1,18 +1,27 @@
 import type {
   BridgeSessionRecord,
+  MemoryCandidateRecord,
   BridgeTokenCreateResponse,
   BridgeTokenRecord,
   ParticipantRecord,
   RoomSummaryRecord,
+  SharedKnowledgeRecord,
+  WorkMemoryRecord,
   BridgeKind
 } from "../../api/client";
+import { CandidateReviewPanel } from "./candidate-review-panel";
+import { SharedKnowledgePanel } from "./shared-knowledge-panel";
 import { TokenManager } from "./token-manager";
+import { WorkMemoryPanel } from "./work-memory-panel";
 
 type AgentPanelProps = {
   activeRoomId: string;
   participants: ParticipantRecord[];
   sessions: BridgeSessionRecord[];
   tokens: BridgeTokenRecord[];
+  candidates: MemoryCandidateRecord[];
+  sharedKnowledge: SharedKnowledgeRecord[];
+  workMemory: WorkMemoryRecord | null;
   latestSummary: RoomSummaryRecord | null;
   onCreateToken: (input: {
     label: string;
@@ -20,6 +29,8 @@ type AgentPanelProps = {
     allowedRoomIds: string[];
   }) => Promise<BridgeTokenCreateResponse>;
   onRevokeToken: (id: string) => Promise<void>;
+  onAcceptCandidate: (candidateId: string) => Promise<void>;
+  onRejectCandidate: (candidateId: string) => Promise<void>;
 };
 
 function resolveDisplayName(participants: ParticipantRecord[], agentId: string): string {
@@ -31,9 +42,14 @@ export function AgentPanel({
   participants,
   sessions,
   tokens,
+  candidates,
+  sharedKnowledge,
+  workMemory,
   latestSummary,
   onCreateToken,
-  onRevokeToken
+  onRevokeToken,
+  onAcceptCandidate,
+  onRejectCandidate
 }: AgentPanelProps) {
   const connectedSessions = sessions.filter((session) => session.status === "connected");
 
@@ -67,6 +83,16 @@ export function AgentPanel({
         onCreateToken={onCreateToken}
         onRevokeToken={onRevokeToken}
       />
+
+      <CandidateReviewPanel
+        candidates={candidates}
+        onAcceptCandidate={onAcceptCandidate}
+        onRejectCandidate={onRejectCandidate}
+      />
+
+      <SharedKnowledgePanel items={sharedKnowledge} />
+
+      <WorkMemoryPanel workMemory={workMemory} />
 
       <section className="agent-section">
         <div className="agent-section__header">

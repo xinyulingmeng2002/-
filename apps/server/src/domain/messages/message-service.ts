@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import type { RoomSummaryStore } from "../memory/room-summary-store";
-import type { WorkMemoryMessage, WorkMemoryRecord, WorkMemoryStore } from "../memory/work-memory-store";
+import {
+  createEmptyWorkMemory,
+  type WorkMemoryMessage,
+  type WorkMemoryRecord,
+  type WorkMemoryStore
+} from "../memory/work-memory-store";
 import type { EventLogStore, RoomEventRecord } from "./event-log-store";
 
 export interface AppendChatMessageInput {
@@ -25,28 +30,33 @@ type MessageServiceOptions = {
   eventLogStore: EventLogStore;
   workMemoryStore: WorkMemoryStore;
   roomSummaryStore?: RoomSummaryStore;
+  onAfterAppend?: (event: RoomEventRecord) => void | Promise<void>;
   now?: () => Date;
 };
 
-function defaultWorkMemory(): WorkMemoryRecord {
-  return {
-    recentMessages: [],
-    activeParticipantIds: [],
-    lastDecisionSummary: "",
-    todoItems: []
-  };
+function inferEventSource(speakerParticipantId: string): RoomEventRecord["source"] {
+  if (speakerParticipantId === "system") {
+    return "system";
+  }
+  if (speakerParticipantId.startsWith("agent-")) {
+    return "agent";
+  }
+
+  return "human";
 }
 
 export class MessageService {
   private readonly eventLogStore: EventLogStore;
   private readonly workMemoryStore: WorkMemoryStore;
   private readonly roomSummaryStore?: RoomSummaryStore;
+  private readonly onAfterAppend?: (event: RoomEventRecord) => void | Promise<void>;
   private readonly now: () => Date;
 
   constructor(options: MessageServiceOptions) {
     this.eventLogStore = options.eventLogStore;
     this.workMemoryStore = options.workMemoryStore;
     this.roomSummaryStore = options.roomSummaryStore;
+    this.onAfterAppend = options.onAfterAppend;
     this.now = options.now ?? (() => new Date());
   }
 
@@ -59,26 +69,32 @@ export class MessageService {
     }));
     const event: RoomEventRecord = {
       eventId: `evt_${randomUUID()}`,
+      spaceId: "space-default",
       kind: "message.created",
       roomId: input.roomId,
+      actorParticipantId: input.speakerParticipantId,
       timestamp,
       payload: {
         messageId,
         speakerParticipantId: input.speakerParticipantId,
         body: input.body,
         ...(attachments ? { attachments } : {})
-      }
+      },
+      source: inferEventSource(input.speakerParticipantId),
+      causationId: null,
+      correlationId: null
     };
 
     this.eventLogStore.append(event);
 
-    const current = this.workMemoryStore.get(input.roomId) ?? defaultWorkMemory();
+    const current = this.workMemoryStore.get(input.roomId) ?? createEmptyWorkMemory(input.roomId);
     const activeParticipantIds = current.activeParticipantIds.includes(input.speakerParticipantId)
       ? current.activeParticipantIds
       : [...current.activeParticipantIds, input.speakerParticipantId];
 
     const nextMemory = {
       ...current,
+      roomId: input.roomId,
       activeParticipantIds,
       recentMessages: [
         ...current.recentMessages,
@@ -88,7 +104,8 @@ export class MessageService {
           body: input.body,
           timestamp
         }
-      ]
+      ],
+      updatedAt: timestamp
     };
 
     this.workMemoryStore.set(input.roomId, nextMemory);
@@ -109,6 +126,14 @@ export class MessageService {
             lastMessageId: latestMessage.messageId
           }
         });
+      }
+    }
+
+    if (this.onAfterAppend) {
+      try {
+        await this.onAfterAppend(event);
+      } catch {
+        // Derived writes must not break the canonical event + L0 path.
       }
     }
 

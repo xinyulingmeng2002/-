@@ -89,6 +89,54 @@ export type RoomSummaryRecord = {
   };
 };
 
+export type MemoryCandidateRecord = {
+  candidateId: string;
+  roomId: string;
+  scope: "shared" | "private";
+  candidateType: "summary" | "todo" | "blocker" | "decision";
+  title: string;
+  body: string;
+  status: "proposed" | "accepted" | "rejected" | "expired";
+  proposedBy: string;
+  sourceEventIds: string[];
+  sourceMemoryIds: string[];
+  targetAgentId: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  acceptedInto: Array<"l0" | "l2">;
+};
+
+export type SharedKnowledgeRecord = {
+  knowledgeId: string;
+  spaceId: string;
+  roomId: string;
+  kind: "decision" | "fact" | "constraint" | "todo";
+  title: string;
+  body: string;
+  keywords: string[];
+  sourceCandidateId: string;
+  sourceEventIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WorkMemoryRecord = {
+  roomId: string;
+  recentMessages: Array<{
+    messageId: string;
+    speakerParticipantId: string;
+    body: string;
+    timestamp: string;
+  }>;
+  activeParticipantIds: string[];
+  todoItems: string[];
+  blockerItems: string[];
+  decisionItems: string[];
+  lastSummaryDraftId: string | null;
+  updatedAt: string;
+};
+
 export class ApiClient {
   private readonly baseUrl: string;
 
@@ -201,11 +249,67 @@ export class ApiClient {
     return response.items;
   }
 
+  async listMemoryCandidates(input: {
+    roomId: string;
+    scope?: "shared" | "private";
+    status?: "proposed" | "accepted" | "rejected" | "expired";
+  }): Promise<MemoryCandidateRecord[]> {
+    const params = new URLSearchParams({ roomId: input.roomId });
+    if (input.scope) {
+      params.set("scope", input.scope);
+    }
+    if (input.status) {
+      params.set("status", input.status);
+    }
+
+    const response = await this.request<{ items: MemoryCandidateRecord[] }>(
+      `/api/memory-candidates?${params.toString()}`
+    );
+    return response.items;
+  }
+
+  async acceptMemoryCandidate(candidateId: string, reviewedBy: string): Promise<MemoryCandidateRecord> {
+    return this.request<MemoryCandidateRecord>(`/api/memory-candidates/${candidateId}/accept`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ reviewedBy })
+    });
+  }
+
+  async rejectMemoryCandidate(candidateId: string, reviewedBy: string): Promise<MemoryCandidateRecord> {
+    return this.request<MemoryCandidateRecord>(`/api/memory-candidates/${candidateId}/reject`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ reviewedBy })
+    });
+  }
+
+  async listSharedKnowledge(input: { roomId: string; spaceId?: string }): Promise<SharedKnowledgeRecord[]> {
+    const params = new URLSearchParams({ roomId: input.roomId });
+    if (input.spaceId) {
+      params.set("spaceId", input.spaceId);
+    }
+
+    const response = await this.request<{ items: SharedKnowledgeRecord[] }>(
+      `/api/shared-knowledge?${params.toString()}`
+    );
+    return response.items;
+  }
+
   async listRoomSummaries(roomId: string): Promise<RoomSummaryRecord[]> {
     const params = new URLSearchParams({ roomId });
     const response = await this.request<{ items: RoomSummaryRecord[] }>(
       `/api/room-summaries?${params.toString()}`
     );
     return response.items;
+  }
+
+  async getWorkMemory(roomId: string): Promise<WorkMemoryRecord> {
+    const params = new URLSearchParams({ roomId });
+    return this.request<WorkMemoryRecord>(`/api/work-memory?${params.toString()}`);
   }
 }
