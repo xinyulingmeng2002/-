@@ -270,4 +270,63 @@ describe("bridge client", () => {
       })
     );
   });
+
+  it("sends attachments through the bridge message ingress payload", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(JSON.stringify({ kind: "message.created", roomId: "room-1" }), {
+        status: 201,
+        headers: {
+          "content-type": "application/json"
+        }
+      })
+    );
+
+    const client = createBridgeClient({
+      baseUrl: "http://127.0.0.1:3000",
+      token: "secret",
+      fetch: fetchMock
+    });
+
+    await client.sendMessage({
+      sessionId: "session-1",
+      agentId: "agent-codex",
+      roomId: "room-1",
+      body: "请看附件",
+      attachments: [
+        {
+          id: "att-1",
+          messageId: "",
+          kind: "image",
+          url: "https://example.com/uploads/diagram.png",
+          name: "diagram.png",
+          mimeType: "image/png",
+          sizeBytes: 2048
+        }
+      ]
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/bridge/ingress/message",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          sessionId: "session-1",
+          agentId: "agent-codex",
+          roomId: "room-1",
+          body: "请看附件",
+          attachments: [
+            {
+              id: "att-1",
+              messageId: "",
+              kind: "image",
+              url: "https://example.com/uploads/diagram.png",
+              name: "diagram.png",
+              mimeType: "image/png",
+              sizeBytes: 2048
+            }
+          ]
+        })
+      })
+    );
+  });
 });

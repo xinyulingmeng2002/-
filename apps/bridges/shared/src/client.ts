@@ -22,8 +22,19 @@ type JoinRoomInput = SessionInput & {
   capabilities?: string[];
 };
 
+type AttachmentInput = {
+  id: string;
+  messageId: string;
+  kind: "image" | "file" | "link";
+  url: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 type SendMessageInput = JoinRoomInput & {
   body: string;
+  attachments?: AttachmentInput[];
 };
 
 type PullEventsInput = JoinRoomInput & {

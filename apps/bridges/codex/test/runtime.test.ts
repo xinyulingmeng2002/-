@@ -220,7 +220,7 @@ describe("codex bridge runtime", () => {
     }
   });
 
-  it("uploads a local file and sends its link into the room", async () => {
+  it("uploads a local file and sends it as a formal attachment message", async () => {
     const tempDir = createTempDir("ma-codex-bridge-");
     const sessionFilePath = join(tempDir, "codex-session.json");
     const filePath = join(tempDir, "diagram.png");
@@ -230,7 +230,10 @@ describe("codex bridge runtime", () => {
           id: "att-1",
           messageId: "",
           kind: "image",
-          url: "http://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png"
+          url: "http://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png",
+          name: "diagram.png",
+          mimeType: "image/png",
+          sizeBytes: 4
         },
         originalName: "diagram.png",
         mimeType: "image/png",
@@ -272,14 +275,28 @@ describe("codex bridge runtime", () => {
         sessionId: "session-1",
         agentId: "agent-codex-main",
         roomId: "room-1",
-        body: "看这个\nhttp://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png"
+        body: "看这个",
+        attachments: [
+          {
+            id: "att-1",
+            messageId: "",
+            kind: "image",
+            url: "http://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png",
+            name: "diagram.png",
+            mimeType: "image/png",
+            sizeBytes: 4
+          }
+        ]
       });
       expect(result).toEqual({
         attachment: {
           id: "att-1",
           messageId: "",
           kind: "image",
-          url: "http://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png"
+          url: "http://127.0.0.1:3000/uploads/2026/04/att-1-diagram.png",
+          name: "diagram.png",
+          mimeType: "image/png",
+          sizeBytes: 4
         },
         originalName: "diagram.png",
         mimeType: "image/png",

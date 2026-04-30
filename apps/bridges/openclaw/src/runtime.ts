@@ -27,8 +27,19 @@ type BridgeJoinRoomInput = BridgeSessionInput & {
   capabilities?: string[];
 };
 
+type BridgeAttachmentInput = {
+  id: string;
+  messageId: string;
+  kind: "image" | "file" | "link";
+  url: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 type BridgeSendMessageInput = BridgeJoinRoomInput & {
   body: string;
+  attachments?: BridgeAttachmentInput[];
 };
 
 type BridgePullEventsInput = BridgeJoinRoomInput & {
@@ -249,18 +260,9 @@ export async function pullOpenClawBridgeEvents<T = unknown>(
   });
 }
 
-function formatAttachmentMessage(options: {
-  caption?: string;
-  originalName: string;
-  url: string;
-}): string {
-  const prefix = options.caption?.trim() ? options.caption.trim() : `[附件] ${options.originalName}`;
-  return `${prefix}\n${options.url}`;
-}
-
 export async function sendOpenClawBridgeAttachment<
-  TUpload extends { attachment: { url: string }; originalName: string } = {
-    attachment: { url: string };
+  TUpload extends { attachment: BridgeAttachmentInput; originalName: string } = {
+    attachment: BridgeAttachmentInput;
     originalName: string;
   }
 >(options: SendAttachmentOptions): Promise<TUpload> {
@@ -282,11 +284,8 @@ export async function sendOpenClawBridgeAttachment<
     sessionId: session.sessionId,
     agentId: session.agentId,
     roomId: session.roomId,
-    body: formatAttachmentMessage({
-      caption: options.caption,
-      originalName: uploaded.originalName,
-      url: uploaded.attachment.url
-    })
+    body: options.caption?.trim() ?? "",
+    attachments: [uploaded.attachment]
   });
 
   return uploaded;

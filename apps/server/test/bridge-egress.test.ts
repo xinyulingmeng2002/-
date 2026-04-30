@@ -130,6 +130,107 @@ describe("bridge egress", () => {
     }
   });
 
+  it("returns attachments on egress for bridge-created attachment messages", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir, now: () => new Date("2026-04-15T14:10:00.000Z") });
+
+    try {
+      const tokenCreated = await app.inject({
+        method: "POST",
+        url: "/api/bridge-tokens",
+        payload: {
+          label: "Codex bridge",
+          bridgeKind: "codex",
+          allowedRoomIds: ["room-1"]
+        }
+      });
+      const token = tokenCreated.json().token as string;
+
+      const connected = await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/connect",
+        headers: {
+          authorization: `Bearer ${token}`
+        },
+        payload: {
+          agentId: "agent-codex",
+          displayName: "Codex",
+          capabilities: ["chat"]
+        }
+      });
+      const sessionId = connected.json().session.id as string;
+
+      await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/join-room",
+        headers: {
+          authorization: `Bearer ${token}`
+        },
+        payload: {
+          sessionId,
+          agentId: "agent-codex",
+          roomId: "room-1"
+        }
+      });
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/message",
+        headers: {
+          authorization: `Bearer ${token}`
+        },
+        payload: {
+          sessionId,
+          agentId: "agent-codex",
+          roomId: "room-1",
+          body: "请看图",
+          attachments: [
+            {
+              id: "att-1",
+              messageId: "",
+              kind: "image",
+              url: "https://example.com/uploads/diagram.png",
+              name: "diagram.png",
+              mimeType: "image/png",
+              sizeBytes: 2048
+            }
+          ]
+        }
+      });
+      expect(created.statusCode).toBe(201);
+
+      const listed = await app.inject({
+        method: "GET",
+        url: `/api/bridge/egress/events?agentId=agent-codex&sessionId=${sessionId}&roomId=room-1`,
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+
+      expect(listed.statusCode).toBe(200);
+      expect(listed.json()).toEqual({
+        items: [
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              body: "请看图",
+              attachments: [
+                expect.objectContaining({
+                  id: "att-1",
+                  name: "diagram.png",
+                  mimeType: "image/png"
+                })
+              ]
+            })
+          })
+        ],
+        nextCursor: created.json().eventId
+      });
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("rejects a sessionId that belongs to another token or agent", async () => {
     const tempDir = createTempDir();
     const app = buildServer({ dataDir: tempDir, now: () => new Date("2026-04-15T15:00:00.000Z") });

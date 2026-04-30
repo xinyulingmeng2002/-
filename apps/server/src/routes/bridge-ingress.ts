@@ -7,6 +7,16 @@ type BridgeIngressRoutesOptions = {
   bridgeService: BridgeService;
 };
 
+type AttachmentPayload = {
+  id: string;
+  messageId: string;
+  kind: "image" | "file" | "link";
+  url: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 function getBearerToken(authorization: unknown): string | null {
   if (typeof authorization !== "string") {
     return null;
@@ -162,6 +172,7 @@ export const bridgeIngressRoutes: FastifyPluginAsync<BridgeIngressRoutesOptions>
           capabilities?: unknown;
           roomId?: unknown;
           body?: unknown;
+          attachments?: unknown;
         }
       | undefined;
 
@@ -171,7 +182,6 @@ export const bridgeIngressRoutes: FastifyPluginAsync<BridgeIngressRoutesOptions>
       typeof payload.roomId !== "string" ||
       !isSafeRoomId(payload.roomId) ||
       typeof payload.body !== "string" ||
-      payload.body.length === 0 ||
       (payload.displayName !== undefined && typeof payload.displayName !== "string") ||
       (payload.capabilities !== undefined &&
         (!Array.isArray(payload.capabilities) ||
@@ -182,6 +192,51 @@ export const bridgeIngressRoutes: FastifyPluginAsync<BridgeIngressRoutesOptions>
       });
     }
 
+    let attachments: AttachmentPayload[] | undefined;
+    if (payload.attachments !== undefined) {
+      if (!Array.isArray(payload.attachments)) {
+        return reply.code(400).send({ error: "attachments must be an array" });
+      }
+
+      const parsedAttachments = payload.attachments.map((attachment) => {
+        if (
+          typeof attachment !== "object" ||
+          attachment === null ||
+          typeof attachment.id !== "string" ||
+          typeof attachment.messageId !== "string" ||
+          (attachment.kind !== "image" && attachment.kind !== "file" && attachment.kind !== "link") ||
+          typeof attachment.url !== "string" ||
+          typeof attachment.name !== "string" ||
+          typeof attachment.mimeType !== "string" ||
+          typeof attachment.sizeBytes !== "number" ||
+          !Number.isFinite(attachment.sizeBytes) ||
+          attachment.sizeBytes < 0
+        ) {
+          return null;
+        }
+
+        return {
+          id: attachment.id,
+          messageId: attachment.messageId,
+          kind: attachment.kind,
+          url: attachment.url,
+          name: attachment.name,
+          mimeType: attachment.mimeType,
+          sizeBytes: attachment.sizeBytes
+        } satisfies AttachmentPayload;
+      });
+
+      if (parsedAttachments.some((attachment) => attachment === null)) {
+        return reply.code(400).send({ error: "attachments contain invalid items" });
+      }
+
+      attachments = parsedAttachments as AttachmentPayload[];
+    }
+
+    if (payload.body.trim().length === 0 && (!attachments || attachments.length === 0)) {
+      return reply.code(400).send({ error: "body or attachments are required" });
+    }
+
     try {
       const event = await bridgeService.sendMessage({
         token,
@@ -190,7 +245,8 @@ export const bridgeIngressRoutes: FastifyPluginAsync<BridgeIngressRoutesOptions>
         displayName: payload.displayName as string | undefined,
         capabilities: (payload.capabilities as string[] | undefined) ?? [],
         roomId: payload.roomId,
-        body: payload.body
+        body: payload.body,
+        attachments
       });
 
       return reply.code(201).send(event);

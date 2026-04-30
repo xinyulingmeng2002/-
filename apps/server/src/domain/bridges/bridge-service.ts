@@ -1,5 +1,8 @@
 import type { RoomEventRecord } from "../messages/event-log-store";
-import type { MessageService } from "../messages/message-service";
+import type {
+  MessageAttachmentInput,
+  MessageService
+} from "../messages/message-service";
 import type { ParticipantRecord, ParticipantStore } from "../participants/participant-store";
 import type { BridgeSessionRecord, BridgeSessionStore } from "./bridge-session-store";
 import type { BridgeKind, BridgeTokenStore } from "./bridge-token-store";
@@ -36,6 +39,7 @@ type JoinRoomInput = SessionInput & {
 
 type SendMessageInput = JoinRoomInput & {
   body: string;
+  attachments?: MessageAttachmentInput[];
 };
 
 type PullRoomEventsInput = SessionInput & {
@@ -175,7 +179,8 @@ export class BridgeService {
     await this.messageService.appendChatMessage({
       roomId: input.roomId,
       speakerParticipantId: input.agentId,
-      body: input.body
+      body: input.body,
+      attachments: input.attachments
     });
 
     const refreshed = this.bridgeSessionStore.heartbeat({
