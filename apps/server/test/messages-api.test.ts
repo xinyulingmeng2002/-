@@ -64,6 +64,60 @@ describe("message service", () => {
       })
     );
   });
+
+  it("keeps the canonical L1 and L0 writes even when derived processing fails", async () => {
+    const events: RoomEventRecord[] = [];
+    const memoryByRoom: Record<string, WorkMemoryRecord> = {};
+
+    const service = new MessageService({
+      eventLogStore: {
+        append(event) {
+          events.push(event);
+        },
+        list() {
+          return events;
+        }
+      },
+      workMemoryStore: {
+        get(roomId) {
+          return memoryByRoom[roomId];
+        },
+        set(roomId, memory) {
+          memoryByRoom[roomId] = memory;
+        }
+      },
+      onAfterAppend() {
+        throw new Error("observer_failed");
+      },
+      now: () => new Date("2026-04-15T12:00:01.000Z")
+    });
+
+    const event = await service.appendChatMessage({
+      roomId: "room-2",
+      speakerParticipantId: "human-1",
+      body: "先把事实层写进去"
+    });
+
+    expect(event).toEqual(
+      expect.objectContaining({
+        kind: "message.created",
+        roomId: "room-2",
+        actorParticipantId: "human-1"
+      })
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0]?.payload.body).toBe("先把事实层写进去");
+    expect(memoryByRoom["room-2"]).toEqual(
+      expect.objectContaining({
+        roomId: "room-2",
+        recentMessages: [
+          expect.objectContaining({
+            body: "先把事实层写进去"
+          })
+        ]
+      })
+    );
+  });
 });
 
 describe("messages api", () => {
