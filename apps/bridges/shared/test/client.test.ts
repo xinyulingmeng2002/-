@@ -271,6 +271,66 @@ describe("bridge client", () => {
     );
   });
 
+  it("fetches a room workspace snapshot through bridge egress", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          agent: {
+            id: "agent-codex",
+            displayName: "Codex",
+            capabilities: ["chat", "code"]
+          },
+          room: {
+            id: "room-1"
+          },
+          recentEvents: [],
+          nextCursor: null
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json"
+          }
+        }
+      )
+    );
+
+    const client = createBridgeClient({
+      baseUrl: "http://127.0.0.1:3000",
+      token: "secret",
+      fetch: fetchMock
+    });
+
+    const snapshot = await client.getWorkspaceSnapshot({
+      sessionId: "session-1",
+      agentId: "agent-codex",
+      roomId: "room-1",
+      eventLimit: 20
+    });
+
+    expect(snapshot).toEqual({
+      agent: {
+        id: "agent-codex",
+        displayName: "Codex",
+        capabilities: ["chat", "code"]
+      },
+      room: {
+        id: "room-1"
+      },
+      recentEvents: [],
+      nextCursor: null
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/bridge/egress/workspace?agentId=agent-codex&sessionId=session-1&roomId=room-1&eventLimit=20",
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          authorization: "Bearer secret"
+        }
+      })
+    );
+  });
+
   it("sends attachments through the bridge message ingress payload", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
       new Response(JSON.stringify({ kind: "message.created", roomId: "room-1" }), {

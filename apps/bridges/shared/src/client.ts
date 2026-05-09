@@ -42,6 +42,10 @@ type PullEventsInput = JoinRoomInput & {
   limit?: number;
 };
 
+type WorkspaceSnapshotInput = JoinRoomInput & {
+  eventLimit?: number;
+};
+
 type UploadFileInput = {
   fileName: string;
   mimeType?: string;
@@ -146,6 +150,14 @@ export function createBridgeClient(config: BridgeClientConfig) {
         roomId: input.roomId,
         afterEventId: input.afterEventId,
         limit: input.limit
+      });
+    },
+    getWorkspaceSnapshot<T>(input: WorkspaceSnapshotInput): Promise<T> {
+      return get<T>("/api/bridge/egress/workspace", {
+        agentId: input.agentId,
+        sessionId: input.sessionId,
+        roomId: input.roomId,
+        eventLimit: input.eventLimit
       });
     },
     uploadFile<T>(input: UploadFileInput): Promise<T> {

@@ -1,6 +1,6 @@
 # OpenClaw Bridge Adapter
 
-`apps/bridges/openclaw` 保留为 OpenClaw 运行时接入平台 bridge gateway 的适配器壳。实际 HTTP 调用由 `@ma/bridge-shared` 提供。
+`apps/bridges/openclaw` 保留为 OpenClaw 运行时接入平台 bridge gateway 的示范适配器壳。实际 HTTP 调用由 `@ma/bridge-shared` 提供；平台边界仍是通用多 Agent bridge，不绑定 OpenClaw。
 
 当前已经补成可实际运行的最小 CLI 适配器，入口是：
 
@@ -72,6 +72,14 @@ npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id evt_
 如果不传 `--room-id`，默认读取 session 文件里的当前房间；如果不传 `--after-event-id`，会返回当前房间最近一批事件。
 如果传入的 `--after-event-id` 已失效，服务端会回退到最近一批事件并返回新的 `nextCursor`，避免轮询卡死。
 
+持续监听新事件：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- events watch --after-event-id evt_123 --limit 20 --poll-ms 2000
+```
+
+`events watch` 会复用 session 文件，持续调用 bridge egress events，并把每个非空批次输出为一行 JSON。第一版不把 cursor 写回 session 文件，外部运行时如果需要断点续跑，应保存每批返回的 `nextCursor`。
+
 发送附件：
 
 ```bash
@@ -119,9 +127,32 @@ data/bridges/openclaw/session.json
 5. `sendMessage({ sessionId, agentId, roomId, body })`
 6. `uploadFile(file)` 后通过 `sendMessage({ body?, attachments })` 发送正式附件消息
 7. `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
-8. 退出时 `disconnect({ sessionId, agentId })`
+8. `getWorkspaceSnapshot({ sessionId, agentId, roomId, eventLimit? })` 一次性获取房间工作面
+9. 长运行场景用 `events watch` 持续监听，并由外部保存 `nextCursor`
+10. 退出时 `disconnect({ sessionId, agentId })`
 
 `sendMessage()` 当前会在服务端补做房间绑定，但适配器仍应显式先调用 `joinRoom()`，这样 session 与房间关系更清晰，也更容易排查权限问题。
+
+## Workspace Snapshot
+
+Agent 重新接入、冷启动或需要恢复房间上下文时，可以通过共享 client 获取房间工作快照：
+
+```ts
+const snapshot = await client.getWorkspaceSnapshot({
+  sessionId: "session-1",
+  agentId: "agent-openclaw-main",
+  roomId: "room-1",
+  eventLimit: 20
+});
+```
+
+对应 HTTP 入口：
+
+```text
+GET /api/bridge/egress/workspace?agentId=<id>&sessionId=<id>&roomId=<roomId>&eventLimit=<n>
+```
+
+返回内容包括 Agent/session、房间、参与者、最新摘要、工作记忆、已共享知识、最近事件和 `nextCursor`。这不是 OpenClaw 私有接口，任意符合 bridge 边界的 Agent adapter 都应走同一入口。
 
 ## Identity Mapping
 

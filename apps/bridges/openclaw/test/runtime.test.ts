@@ -9,7 +9,8 @@ import {
   pullOpenClawBridgeEvents,
   runOpenClawBridgeSession,
   sendOpenClawBridgeMessage,
-  stopOpenClawBridgeSession
+  stopOpenClawBridgeSession,
+  watchOpenClawBridgeEvents
 } from "../src/runtime";
 
 function createTempDir(prefix = "ma-openclaw-bridge-"): string {
@@ -348,6 +349,96 @@ describe("openclaw bridge runtime", () => {
         items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
         nextCursor: "evt-2"
       });
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("watches room events with cursor advancement", async () => {
+    const tempDir = createTempDir("ma-openclaw-bridge-");
+    const sessionFilePath = join(tempDir, "openclaw-session.json");
+    const abortController = new AbortController();
+    const batches: unknown[] = [];
+    const client = {
+      pullEvents: vi
+        .fn()
+        .mockResolvedValueOnce({
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        })
+        .mockResolvedValueOnce({
+          items: [],
+          nextCursor: "evt-2"
+        })
+        .mockResolvedValueOnce({
+          items: [{ eventId: "evt-3", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-3"
+        })
+    };
+    const sleep = vi.fn().mockImplementation(async () => {
+      if (client.pullEvents.mock.calls.length >= 3) {
+        abortController.abort();
+      }
+    });
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      await watchOpenClawBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        afterEventId: "evt-1",
+        limit: 20,
+        pollMs: 10,
+        signal: abortController.signal,
+        sleep,
+        onBatch(batch) {
+          batches.push(batch);
+        }
+      });
+
+      expect(client.pullEvents).toHaveBeenNthCalledWith(1, {
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        roomId: "room-1",
+        afterEventId: "evt-1",
+        limit: 20
+      });
+      expect(client.pullEvents).toHaveBeenNthCalledWith(2, {
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        roomId: "room-1",
+        afterEventId: "evt-2",
+        limit: 20
+      });
+      expect(client.pullEvents).toHaveBeenNthCalledWith(3, {
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        roomId: "room-1",
+        afterEventId: "evt-2",
+        limit: 20
+      });
+      expect(batches).toEqual([
+        {
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        },
+        {
+          items: [{ eventId: "evt-3", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-3"
+        }
+      ]);
+      expect(sleep).toHaveBeenCalledWith(10);
     } finally {
       cleanupTempDir(tempDir);
     }

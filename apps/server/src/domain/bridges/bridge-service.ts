@@ -3,6 +3,9 @@ import type {
   MessageAttachmentInput,
   MessageService
 } from "../messages/message-service";
+import type { RoomSummaryStore } from "../memory/room-summary-store";
+import type { SharedKnowledgeStore } from "../memory/shared-knowledge-store";
+import type { WorkMemoryStore } from "../memory/work-memory-store";
 import type { ParticipantRecord, ParticipantStore } from "../participants/participant-store";
 import type { BridgeSessionRecord, BridgeSessionStore } from "./bridge-session-store";
 import type { BridgeKind, BridgeTokenStore } from "./bridge-token-store";
@@ -14,6 +17,9 @@ type BridgeServiceOptions = {
   bridgeSessionStore: BridgeSessionStore;
   participantStore: ParticipantStore;
   messageService: MessageService;
+  roomSummaryStore?: RoomSummaryStore;
+  workMemoryStore?: WorkMemoryStore;
+  sharedKnowledgeStore?: SharedKnowledgeStore;
   now?: () => Date;
   sessionTtlMs?: number;
 };
@@ -48,6 +54,11 @@ type PullRoomEventsInput = SessionInput & {
   limit?: number;
 };
 
+type GetWorkspaceSnapshotInput = SessionInput & {
+  roomId: string;
+  eventLimit?: number;
+};
+
 type ActiveBridgeToken = {
   id: string;
   bridgeKind: BridgeKind;
@@ -59,6 +70,9 @@ export class BridgeService {
   private readonly bridgeSessionStore: BridgeSessionStore;
   private readonly participantStore: ParticipantStore;
   private readonly messageService: MessageService;
+  private readonly roomSummaryStore?: RoomSummaryStore;
+  private readonly workMemoryStore?: WorkMemoryStore;
+  private readonly sharedKnowledgeStore?: SharedKnowledgeStore;
   private readonly now: () => Date;
   private readonly sessionTtlMs: number;
 
@@ -67,6 +81,9 @@ export class BridgeService {
     this.bridgeSessionStore = options.bridgeSessionStore;
     this.participantStore = options.participantStore;
     this.messageService = options.messageService;
+    this.roomSummaryStore = options.roomSummaryStore;
+    this.workMemoryStore = options.workMemoryStore;
+    this.sharedKnowledgeStore = options.sharedKnowledgeStore;
     this.now = options.now ?? (() => new Date());
     this.sessionTtlMs = options.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
   }
@@ -235,6 +252,72 @@ export class BridgeService {
     return {
       items,
       nextCursor: items.at(-1)?.eventId ?? input.afterEventId ?? null
+    };
+  }
+
+  getWorkspaceSnapshot(input: GetWorkspaceSnapshotInput) {
+    const bridgeToken = this.authenticate(input.token);
+    this.assertRoomAllowed(bridgeToken, input.roomId);
+    const session = this.resolveSession({
+      tokenId: bridgeToken.id,
+      agentId: input.agentId,
+      sessionId: input.sessionId
+    });
+
+    if (!session.activeRoomIds.includes(input.roomId)) {
+      throw new Error("bridge_room_not_joined");
+    }
+
+    const refreshed = this.bridgeSessionStore.heartbeat({
+      id: session.id,
+      lastSeenAt: this.timestamp(),
+      expiresAt: this.expiresAt()
+    });
+
+    if (!refreshed) {
+      throw new Error("bridge_session_not_found");
+    }
+
+    const participant = this.participantStore.get(input.agentId);
+    if (participant) {
+      this.participantStore.upsert({
+        ...participant,
+        lastSeenAt: refreshed.lastSeenAt
+      });
+    }
+
+    const recentEvents = this.messageService.listRoomEventsAfter(input.roomId, {
+      limit: input.eventLimit
+    });
+
+    return {
+      agent: {
+        id: input.agentId,
+        displayName: participant?.displayName ?? input.agentId,
+        capabilities: participant?.capabilities ?? []
+      },
+      session: {
+        id: refreshed.id,
+        activeRoomIds: refreshed.activeRoomIds,
+        lastSeenAt: refreshed.lastSeenAt,
+        expiresAt: refreshed.expiresAt
+      },
+      room: {
+        id: input.roomId
+      },
+      participants: this.participantStore.list().map((item) => ({
+        id: item.id,
+        type: item.type,
+        displayName: item.displayName,
+        bridgeKind: item.bridgeKind,
+        capabilities: item.capabilities,
+        lastSeenAt: item.lastSeenAt
+      })),
+      latestSummary: this.roomSummaryStore?.getLatest(input.roomId) ?? null,
+      workMemory: this.workMemoryStore?.get(input.roomId) ?? null,
+      sharedKnowledge: this.sharedKnowledgeStore?.list({ roomId: input.roomId }) ?? [],
+      recentEvents,
+      nextCursor: recentEvents.at(-1)?.eventId ?? null
     };
   }
 

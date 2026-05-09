@@ -9,7 +9,8 @@ import {
   pullCodexBridgeEvents,
   runCodexBridgeSession,
   sendCodexBridgeMessage,
-  stopCodexBridgeSession
+  stopCodexBridgeSession,
+  watchCodexBridgeEvents
 } from "../src/runtime";
 
 function createTempDir(prefix = "ma-codex-bridge-"): string {
@@ -348,6 +349,74 @@ describe("codex bridge runtime", () => {
         items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
         nextCursor: "evt-2"
       });
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("watches room events with cursor advancement", async () => {
+    const tempDir = createTempDir("ma-codex-bridge-");
+    const sessionFilePath = join(tempDir, "codex-session.json");
+    const batches: unknown[] = [];
+    const client = {
+      pullEvents: vi
+        .fn()
+        .mockResolvedValueOnce({
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        })
+        .mockImplementationOnce(() => {
+          throw new Error("stop");
+        })
+    };
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        displayName: "Codex",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      await expect(
+        watchCodexBridgeEvents({
+          client: client as never,
+          sessionFilePath,
+          afterEventId: "evt-1",
+          limit: 20,
+          pollMs: 1,
+          onBatch(batch) {
+            batches.push(batch);
+          },
+          sleep: async () => undefined
+        })
+      ).rejects.toThrow("stop");
+
+      expect(client.pullEvents).toHaveBeenNthCalledWith(1, {
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        roomId: "room-1",
+        afterEventId: "evt-1",
+        limit: 20
+      });
+      expect(client.pullEvents).toHaveBeenNthCalledWith(2, {
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        roomId: "room-1",
+        afterEventId: "evt-2",
+        limit: 20
+      });
+      expect(batches).toEqual([
+        {
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        }
+      ]);
     } finally {
       cleanupTempDir(tempDir);
     }

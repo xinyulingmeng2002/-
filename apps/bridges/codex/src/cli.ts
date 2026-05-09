@@ -7,7 +7,8 @@ import {
   runCodexBridgeSession,
   sendCodexBridgeAttachment,
   sendCodexBridgeMessage,
-  stopCodexBridgeSession
+  stopCodexBridgeSession,
+  watchCodexBridgeEvents
 } from "./runtime";
 
 async function readStdinBody(): Promise<string> {
@@ -85,6 +86,30 @@ export async function runCodexBridgeCli(argv = process.argv.slice(2)): Promise<v
   if (parsed.kind === "events.pull") {
     const events = await pullCodexBridgeEvents(parsed.options);
     console.log(JSON.stringify(events, null, 2));
+    return;
+  }
+
+  if (parsed.kind === "events.watch") {
+    const abortController = new AbortController();
+    const stop = () => {
+      abortController.abort();
+    };
+
+    process.on("SIGINT", stop);
+    process.on("SIGTERM", stop);
+
+    try {
+      await watchCodexBridgeEvents({
+        ...parsed.options,
+        signal: abortController.signal,
+        onBatch(batch) {
+          console.log(JSON.stringify(batch));
+        }
+      });
+    } finally {
+      process.off("SIGINT", stop);
+      process.off("SIGTERM", stop);
+    }
     return;
   }
 

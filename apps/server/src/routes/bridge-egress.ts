@@ -91,4 +91,48 @@ export const bridgeEgressRoutes: FastifyPluginAsync<BridgeEgressRoutesOptions> =
       return sendBridgeError(reply, error);
     }
   });
+
+  app.get("/api/bridge/egress/workspace", async (request, reply) => {
+    const token = getBearerToken(request.headers.authorization);
+    const query = request.query as
+      | {
+          agentId?: unknown;
+          sessionId?: unknown;
+          roomId?: unknown;
+          eventLimit?: unknown;
+        }
+      | undefined;
+
+    const eventLimit =
+      typeof query?.eventLimit === "string" && query.eventLimit.length > 0
+        ? Number.parseInt(query.eventLimit, 10)
+        : DEFAULT_LIMIT;
+
+    if (
+      !token ||
+      typeof query?.agentId !== "string" ||
+      typeof query.roomId !== "string" ||
+      !isSafeRoomId(query.roomId) ||
+      (query.sessionId !== undefined && typeof query.sessionId !== "string") ||
+      !Number.isFinite(eventLimit) ||
+      eventLimit <= 0 ||
+      eventLimit > MAX_LIMIT
+    ) {
+      return reply.code(400).send({
+        error: "authorization, agentId, safe roomId, and optional sessionId/eventLimit are required"
+      });
+    }
+
+    try {
+      return bridgeService.getWorkspaceSnapshot({
+        token,
+        agentId: query.agentId,
+        sessionId: query.sessionId as string | undefined,
+        roomId: query.roomId,
+        eventLimit
+      });
+    } catch (error) {
+      return sendBridgeError(reply, error);
+    }
+  });
 };

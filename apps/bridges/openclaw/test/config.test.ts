@@ -71,6 +71,27 @@ describe("openclaw bridge config", () => {
     });
   });
 
+  it("parses events watch arguments", () => {
+    const parsed = parseOpenClawBridgeCliArgs(
+      ["events", "watch", "--after-event-id", "evt-1", "--limit", "25", "--poll-ms", "500"],
+      {
+        MA_BRIDGE_SESSION_FILE: "/tmp/openclaw-session.json"
+      },
+      "/workspace"
+    );
+
+    expect(parsed).toEqual({
+      kind: "events.watch",
+      options: {
+        sessionFilePath: "/tmp/openclaw-session.json",
+        afterEventId: "evt-1",
+        limit: 25,
+        pollMs: 500,
+        roomId: undefined
+      }
+    });
+  });
+
   it("parses attachment send arguments", () => {
     const parsed = parseOpenClawBridgeCliArgs(
       ["attachment", "send", "--file", "/tmp/diagram.png", "--caption", "看这个", "--mime-type", "image/png"],

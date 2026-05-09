@@ -404,4 +404,133 @@ describe("bridge egress", () => {
       cleanupTempDir(tempDir);
     }
   });
+
+  it("returns a room workspace snapshot for a joined bridge session", async () => {
+    const tempDir = createTempDir();
+    let currentTime = new Date("2026-05-10T09:00:00.000Z");
+    const app = buildServer({ dataDir: tempDir, now: () => currentTime });
+
+    try {
+      const tokenCreated = await app.inject({
+        method: "POST",
+        url: "/api/bridge-tokens",
+        payload: {
+          label: "Generic bridge",
+          bridgeKind: "generic",
+          allowedRoomIds: ["room-1"]
+        }
+      });
+      const token = tokenCreated.json().token as string;
+
+      const connected = await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/connect",
+        headers: {
+          authorization: `Bearer ${token}`
+        },
+        payload: {
+          agentId: "agent-generic",
+          displayName: "Generic Agent",
+          capabilities: ["chat", "analysis"]
+        }
+      });
+      const sessionId = connected.json().session.id as string;
+
+      const joined = await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/join-room",
+        headers: {
+          authorization: `Bearer ${token}`
+        },
+        payload: {
+          sessionId,
+          agentId: "agent-generic",
+          roomId: "room-1"
+        }
+      });
+      expect(joined.statusCode).toBe(200);
+
+      const humanMessage = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        payload: {
+          roomId: "room-1",
+          speakerParticipantId: "human-owner",
+          body: "请各位 Agent 看一下当前实现"
+        }
+      });
+      expect(humanMessage.statusCode).toBe(201);
+
+      await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/message",
+        headers: {
+          authorization: `Bearer ${token}`
+        },
+        payload: {
+          sessionId,
+          agentId: "agent-generic",
+          roomId: "room-1",
+          body: "我已收到"
+        }
+      });
+
+      currentTime = new Date("2026-05-10T09:01:00.000Z");
+
+      const snapshot = await app.inject({
+        method: "GET",
+        url: `/api/bridge/egress/workspace?agentId=agent-generic&sessionId=${sessionId}&roomId=room-1&eventLimit=10`,
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+
+      expect(snapshot.statusCode).toBe(200);
+      expect(snapshot.json()).toEqual({
+        agent: {
+          id: "agent-generic",
+          displayName: "Generic Agent",
+          capabilities: ["chat", "analysis"]
+        },
+        session: expect.objectContaining({
+          id: sessionId,
+          activeRoomIds: ["room-1"],
+          lastSeenAt: "2026-05-10T09:01:00.000Z"
+        }),
+        room: {
+          id: "room-1"
+        },
+        participants: [
+          expect.objectContaining({
+            id: "agent-generic",
+            type: "agent",
+            displayName: "Generic Agent"
+          })
+        ],
+        latestSummary: expect.objectContaining({
+          roomId: "room-1",
+          messageCount: 2
+        }),
+        workMemory: expect.objectContaining({
+          roomId: "room-1",
+          activeParticipantIds: ["human-owner", "agent-generic"]
+        }),
+        sharedKnowledge: [],
+        recentEvents: [
+          expect.objectContaining({
+            eventId: humanMessage.json().eventId,
+            roomId: "room-1"
+          }),
+          expect.objectContaining({
+            actorParticipantId: "agent-generic",
+            roomId: "room-1"
+          })
+        ],
+        nextCursor: expect.any(String)
+      });
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
 });
