@@ -159,6 +159,22 @@ export class MemoryReviewService {
       throw new Error("private_memory_forbidden");
     }
 
+    const existingCandidate = this.memoryCandidateStore
+      .list({
+        roomId: memory.roomId,
+        scope: "shared",
+        status: "proposed"
+      })
+      .find(
+        (candidate) =>
+          candidate.candidateType === input.candidateType &&
+          candidate.targetAgentId === memory.agentId &&
+          candidate.sourceMemoryIds.includes(memory.memoryId)
+      );
+    if (existingCandidate) {
+      return existingCandidate;
+    }
+
     const createdAt = this.timestamp();
     const candidate: MemoryCandidateRecord = {
       candidateId: `cand_${randomUUID()}`,

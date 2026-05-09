@@ -179,4 +179,70 @@ describe("private memories api", () => {
       cleanupTempDir(tempDir);
     }
   });
+
+  it("does not duplicate shared candidates when the same private memory is shared twice", async () => {
+    const tempDir = createTempDir();
+    const eventLogStore = createEventLogStore(tempDir);
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/private-memories",
+        payload: {
+          agentId: "agent-codex",
+          roomId: "room-3",
+          memoryType: "insight",
+          title: "Review once",
+          body: "Route this note through candidate review once.",
+          tags: ["review"],
+          confidence: 0.9,
+          sourceEventIds: ["evt-3"]
+        }
+      });
+
+      const memoryId = created.json().memoryId as string;
+      const firstShare = await app.inject({
+        method: "POST",
+        url: `/api/private-memories/${memoryId}/share-candidate`,
+        payload: {
+          agentId: "agent-codex",
+          candidateType: "decision"
+        }
+      });
+      const secondShare = await app.inject({
+        method: "POST",
+        url: `/api/private-memories/${memoryId}/share-candidate`,
+        payload: {
+          agentId: "agent-codex",
+          candidateType: "decision"
+        }
+      });
+
+      expect(firstShare.statusCode).toBe(201);
+      expect(secondShare.statusCode).toBe(201);
+      expect(firstShare.json().candidateId).toBe(secondShare.json().candidateId);
+
+      const candidates = await app.inject({
+        method: "GET",
+        url: "/api/memory-candidates?roomId=room-3&scope=shared&status=proposed"
+      });
+
+      expect(candidates.statusCode).toBe(200);
+      expect(candidates.json().items).toHaveLength(1);
+      expect(candidates.json().items[0]).toEqual(
+        expect.objectContaining({
+          sourceMemoryIds: [memoryId],
+          candidateType: "decision"
+        })
+      );
+
+      expect(
+        eventLogStore.list("room-3").filter((event) => event.kind === "memory.candidate.submitted")
+      ).toHaveLength(1);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
 });
