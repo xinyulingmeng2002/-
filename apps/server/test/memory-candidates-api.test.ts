@@ -403,4 +403,70 @@ describe("memory candidates api", () => {
       cleanupTempDir(tempDir);
     }
   });
+
+  it("does not let a rejected candidate transition into accepted", async () => {
+    const tempDir = createTempDir();
+    const candidateStore = createMemoryCandidateStore(tempDir);
+    const eventLogStore = createEventLogStore(tempDir);
+    const app = buildServer({ dataDir: tempDir });
+
+    candidateStore.create({
+      candidateId: "cand-6",
+      roomId: "room-6",
+      scope: "shared",
+      candidateType: "decision",
+      title: "Keep rejected terminal",
+      body: "Rejected candidates should not later create shared knowledge.",
+      status: "proposed",
+      proposedBy: "observer",
+      sourceEventIds: ["evt-6"],
+      sourceMemoryIds: [],
+      targetAgentId: null,
+      createdAt: "2026-04-30T00:00:00.000Z",
+      reviewedAt: null,
+      reviewedBy: null,
+      acceptedInto: []
+    });
+
+    try {
+      const rejected = await app.inject({
+        method: "POST",
+        url: "/api/memory-candidates/cand-6/reject",
+        payload: {
+          reviewedBy: "human-1"
+        }
+      });
+      const accepted = await app.inject({
+        method: "POST",
+        url: "/api/memory-candidates/cand-6/accept",
+        payload: {
+          reviewedBy: "human-1"
+        }
+      });
+
+      expect(rejected.statusCode).toBe(200);
+      expect(accepted.statusCode).toBe(200);
+      expect(accepted.json()).toEqual(
+        expect.objectContaining({
+          candidateId: "cand-6",
+          status: "rejected",
+          acceptedInto: []
+        })
+      );
+
+      const knowledge = await app.inject({
+        method: "GET",
+        url: "/api/shared-knowledge?roomId=room-6"
+      });
+
+      expect(knowledge.statusCode).toBe(200);
+      expect(knowledge.json()).toEqual({ items: [] });
+      expect(
+        eventLogStore.list("room-6").filter((event) => event.kind === "memory.candidate.accepted")
+      ).toHaveLength(0);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
 });
