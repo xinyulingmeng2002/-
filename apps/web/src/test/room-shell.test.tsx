@@ -7,6 +7,24 @@ import { RoomShell } from "../features/rooms/room-shell";
 
 describe("RoomShell", () => {
   it("subscribes to realtime presence and incoming messages", async () => {
+    const sharePrivateMemoryAsCandidate = vi.fn().mockResolvedValue({
+      candidateId: "cand-private-1",
+      roomId: "room-1",
+      scope: "shared",
+      candidateType: "decision",
+      title: "Private note promoted",
+      body: "Promoted through candidate review.",
+      status: "proposed",
+      proposedBy: "agent:agent-codex",
+      sourceEventIds: ["evt-private-1"],
+      sourceMemoryIds: ["mem-private-1"],
+      targetAgentId: "agent-codex",
+      createdAt: "2026-04-15T12:12:00.000Z",
+      reviewedAt: null,
+      reviewedBy: null,
+      acceptedInto: []
+    });
+
     const apiClient = {
       listSpaces: vi.fn().mockResolvedValue([{ id: "space-default", name: "默认空间" }]),
       listRooms: vi.fn().mockResolvedValue([
@@ -88,7 +106,11 @@ describe("RoomShell", () => {
           totalMemories: 1,
           shareableMemories: 1,
           latestUpdatedAt: "2026-04-15T12:11:00.000Z",
-          latestSourceEventIds: ["evt-private-1"]
+          latestSourceEventIds: ["evt-private-1"],
+          suggestedShareCandidate: {
+            memoryId: "mem-private-1",
+            candidateType: "decision"
+          }
         }
       ]),
       getWorkMemory: vi.fn().mockResolvedValue({
@@ -103,6 +125,7 @@ describe("RoomShell", () => {
       }),
       acceptMemoryCandidate: vi.fn(),
       rejectMemoryCandidate: vi.fn(),
+      sharePrivateMemoryAsCandidate,
       listRoomSummaries: vi.fn().mockResolvedValue([
         {
           roomId: "room-1",
@@ -222,6 +245,18 @@ describe("RoomShell", () => {
     expect(await screen.findByText("私有记忆状态")).toBeInTheDocument();
     expect(await screen.findByText("agent-codex")).toBeInTheDocument();
     expect(screen.queryByText("This should stay in codex private scope.")).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "提交为共享候选" }));
+    });
+
+    await waitFor(() => {
+      expect(sharePrivateMemoryAsCandidate).toHaveBeenCalledWith({
+        memoryId: "mem-private-1",
+        agentId: "agent-codex",
+        candidateType: "decision"
+      });
+    });
   });
 
   it("uploads a file as a formal attachment message instead of a system URL notice", async () => {
@@ -295,6 +330,7 @@ describe("RoomShell", () => {
       }),
       acceptMemoryCandidate: vi.fn(),
       rejectMemoryCandidate: vi.fn(),
+      sharePrivateMemoryAsCandidate: vi.fn(),
       listRoomSummaries: vi.fn().mockResolvedValue([])
     } as unknown as ApiClient;
 
@@ -345,5 +381,244 @@ describe("RoomShell", () => {
 
     expect(await screen.findByText("diagram.png")).toBeInTheDocument();
     expect(screen.queryByText(/已上传/)).not.toBeInTheDocument();
+  });
+
+  it("shows pending review state for private memory that already has a proposed shared candidate", async () => {
+    const apiClient = {
+      listSpaces: vi.fn().mockResolvedValue([{ id: "space-default", name: "默认空间" }]),
+      listRooms: vi.fn().mockResolvedValue([
+        {
+          id: "room-1",
+          spaceId: "space-default",
+          name: "主协作间",
+          participantIds: []
+        }
+      ]),
+      createRoom: vi.fn(),
+      listMessages: vi.fn().mockResolvedValue([]),
+      createMessage: vi.fn(),
+      uploadFile: vi.fn(),
+      listParticipants: vi.fn().mockResolvedValue([]),
+      listBridgeTokens: vi.fn().mockResolvedValue([]),
+      createBridgeToken: vi.fn(),
+      revokeBridgeToken: vi.fn(),
+      listBridgeSessions: vi.fn().mockResolvedValue([]),
+      listMemoryCandidates: vi.fn().mockResolvedValue([]),
+      listSharedKnowledge: vi.fn().mockResolvedValue([]),
+      listPrivateMemoryOverview: vi.fn().mockResolvedValue([
+        {
+          agentId: "agent-codex",
+          roomId: "room-1",
+          totalMemories: 1,
+          shareableMemories: 0,
+          latestUpdatedAt: "2026-04-15T12:11:00.000Z",
+          latestSourceEventIds: ["evt-private-1"],
+          suggestedShareCandidate: null,
+          pendingShareCandidate: {
+            candidateId: "cand-private-1",
+            memoryId: "mem-private-1",
+            candidateType: "decision",
+            submittedAt: "2026-04-15T12:12:00.000Z"
+          },
+          latestShareOutcome: null
+        }
+      ]),
+      getWorkMemory: vi.fn().mockResolvedValue({
+        roomId: "room-1",
+        recentMessages: [],
+        activeParticipantIds: [],
+        todoItems: [],
+        blockerItems: [],
+        decisionItems: [],
+        lastSummaryDraftId: null,
+        updatedAt: "2026-04-15T12:10:00.000Z"
+      }),
+      acceptMemoryCandidate: vi.fn(),
+      rejectMemoryCandidate: vi.fn(),
+      sharePrivateMemoryAsCandidate: vi.fn(),
+      listRoomSummaries: vi.fn().mockResolvedValue([])
+    } as unknown as ApiClient;
+
+    render(
+      <RoomShell
+        apiClient={apiClient}
+        createSocketClient={() => ({
+          joinRoom: vi.fn(),
+          publishPresence: vi.fn(),
+          publishMessage: vi.fn(),
+          onPresence: () => () => undefined,
+          onMessage: () => () => undefined,
+          dispose: vi.fn()
+        })}
+      />
+    );
+
+    expect(await screen.findByText("私有记忆状态")).toBeInTheDocument();
+    expect(await screen.findByText("已提交待审核")).toBeInTheDocument();
+    expect(screen.getByText("提交于 2026-04-15T12:12:00.000Z")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看候选 cand-private-1" })).toHaveAttribute(
+      "href",
+      "#candidate-cand-private-1"
+    );
+    expect(screen.getByText("1 条私有记忆 / 0 条可提交候选")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "提交为共享候选" })).not.toBeInTheDocument();
+  });
+
+  it("shows accepted private memory outcome after candidate review succeeds", async () => {
+    const apiClient = {
+      listSpaces: vi.fn().mockResolvedValue([{ id: "space-default", name: "默认空间" }]),
+      listRooms: vi.fn().mockResolvedValue([
+        {
+          id: "room-1",
+          spaceId: "space-default",
+          name: "主协作间",
+          participantIds: []
+        }
+      ]),
+      createRoom: vi.fn(),
+      listMessages: vi.fn().mockResolvedValue([]),
+      createMessage: vi.fn(),
+      uploadFile: vi.fn(),
+      listParticipants: vi.fn().mockResolvedValue([]),
+      listBridgeTokens: vi.fn().mockResolvedValue([]),
+      createBridgeToken: vi.fn(),
+      revokeBridgeToken: vi.fn(),
+      listBridgeSessions: vi.fn().mockResolvedValue([]),
+      listMemoryCandidates: vi.fn().mockResolvedValue([]),
+      listSharedKnowledge: vi.fn().mockResolvedValue([]),
+      listPrivateMemoryOverview: vi.fn().mockResolvedValue([
+        {
+          agentId: "agent-codex",
+          roomId: "room-1",
+          totalMemories: 1,
+          shareableMemories: 1,
+          latestUpdatedAt: "2026-04-15T12:11:00.000Z",
+          latestSourceEventIds: ["evt-private-1"],
+          suggestedShareCandidate: {
+            memoryId: "mem-private-1",
+            candidateType: "decision"
+          },
+          pendingShareCandidate: null,
+          latestShareOutcome: {
+            candidateId: "cand-private-1",
+            memoryId: "mem-private-1",
+            candidateType: "decision",
+            status: "accepted",
+            reviewedAt: "2026-04-15T12:20:00.000Z"
+          }
+        }
+      ]),
+      getWorkMemory: vi.fn().mockResolvedValue({
+        roomId: "room-1",
+        recentMessages: [],
+        activeParticipantIds: [],
+        todoItems: [],
+        blockerItems: [],
+        decisionItems: [],
+        lastSummaryDraftId: null,
+        updatedAt: "2026-04-15T12:10:00.000Z"
+      }),
+      acceptMemoryCandidate: vi.fn(),
+      rejectMemoryCandidate: vi.fn(),
+      sharePrivateMemoryAsCandidate: vi.fn(),
+      listRoomSummaries: vi.fn().mockResolvedValue([])
+    } as unknown as ApiClient;
+
+    render(
+      <RoomShell
+        apiClient={apiClient}
+        createSocketClient={() => ({
+          joinRoom: vi.fn(),
+          publishPresence: vi.fn(),
+          publishMessage: vi.fn(),
+          onPresence: () => () => undefined,
+          onMessage: () => () => undefined,
+          dispose: vi.fn()
+        })}
+      />
+    );
+
+    expect(await screen.findByText("已接受进入共享层")).toBeInTheDocument();
+    expect(screen.getByText("审核于 2026-04-15T12:20:00.000Z")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "提交为共享候选" })).toBeInTheDocument();
+  });
+
+  it("shows rejected private memory outcome after candidate review fails", async () => {
+    const apiClient = {
+      listSpaces: vi.fn().mockResolvedValue([{ id: "space-default", name: "默认空间" }]),
+      listRooms: vi.fn().mockResolvedValue([
+        {
+          id: "room-1",
+          spaceId: "space-default",
+          name: "主协作间",
+          participantIds: []
+        }
+      ]),
+      createRoom: vi.fn(),
+      listMessages: vi.fn().mockResolvedValue([]),
+      createMessage: vi.fn(),
+      uploadFile: vi.fn(),
+      listParticipants: vi.fn().mockResolvedValue([]),
+      listBridgeTokens: vi.fn().mockResolvedValue([]),
+      createBridgeToken: vi.fn(),
+      revokeBridgeToken: vi.fn(),
+      listBridgeSessions: vi.fn().mockResolvedValue([]),
+      listMemoryCandidates: vi.fn().mockResolvedValue([]),
+      listSharedKnowledge: vi.fn().mockResolvedValue([]),
+      listPrivateMemoryOverview: vi.fn().mockResolvedValue([
+        {
+          agentId: "agent-codex",
+          roomId: "room-1",
+          totalMemories: 1,
+          shareableMemories: 1,
+          latestUpdatedAt: "2026-04-15T12:11:00.000Z",
+          latestSourceEventIds: ["evt-private-1"],
+          suggestedShareCandidate: {
+            memoryId: "mem-private-1",
+            candidateType: "decision"
+          },
+          pendingShareCandidate: null,
+          latestShareOutcome: {
+            candidateId: "cand-private-2",
+            memoryId: "mem-private-1",
+            candidateType: "decision",
+            status: "rejected",
+            reviewedAt: "2026-04-15T12:22:00.000Z"
+          }
+        }
+      ]),
+      getWorkMemory: vi.fn().mockResolvedValue({
+        roomId: "room-1",
+        recentMessages: [],
+        activeParticipantIds: [],
+        todoItems: [],
+        blockerItems: [],
+        decisionItems: [],
+        lastSummaryDraftId: null,
+        updatedAt: "2026-04-15T12:10:00.000Z"
+      }),
+      acceptMemoryCandidate: vi.fn(),
+      rejectMemoryCandidate: vi.fn(),
+      sharePrivateMemoryAsCandidate: vi.fn(),
+      listRoomSummaries: vi.fn().mockResolvedValue([])
+    } as unknown as ApiClient;
+
+    render(
+      <RoomShell
+        apiClient={apiClient}
+        createSocketClient={() => ({
+          joinRoom: vi.fn(),
+          publishPresence: vi.fn(),
+          publishMessage: vi.fn(),
+          onPresence: () => () => undefined,
+          onMessage: () => () => undefined,
+          dispose: vi.fn()
+        })}
+      />
+    );
+
+    expect(await screen.findByText("已拒绝，等待重新判断")).toBeInTheDocument();
+    expect(screen.getByText("审核于 2026-04-15T12:22:00.000Z")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "提交为共享候选" })).toBeInTheDocument();
   });
 });

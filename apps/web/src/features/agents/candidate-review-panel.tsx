@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { MemoryCandidateRecord } from "../../api/client";
 
@@ -14,6 +14,16 @@ export function CandidateReviewPanel({
   onRejectCandidate
 }: CandidateReviewPanelProps) {
   const [busyCandidateId, setBusyCandidateId] = useState<string | null>(null);
+  const [targetCandidateId, setTargetCandidateId] = useState(() => getTargetCandidateId());
+
+  useEffect(() => {
+    function handleHashChange() {
+      setTargetCandidateId(getTargetCandidateId());
+    }
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   async function handleAccept(candidateId: string) {
     setBusyCandidateId(candidateId);
@@ -42,8 +52,16 @@ export function CandidateReviewPanel({
 
       <div className="candidate-list">
         {candidates.length === 0 ? <p className="empty-state">当前房间暂无待审核候选。</p> : null}
-        {candidates.map((candidate) => (
-          <article key={candidate.candidateId} className="candidate-card">
+        {candidates.map((candidate) => {
+          const isTargeted = targetCandidateId === candidate.candidateId;
+
+          return (
+          <article
+            key={candidate.candidateId}
+            id={`candidate-${candidate.candidateId}`}
+            className={isTargeted ? "candidate-card candidate-card--target" : "candidate-card"}
+            aria-current={isTargeted ? "true" : undefined}
+          >
             <div className="candidate-card__header">
               <div>
                 <strong>{candidate.title}</strong>
@@ -73,8 +91,14 @@ export function CandidateReviewPanel({
               </button>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
+}
+
+function getTargetCandidateId(): string | null {
+  const hash = window.location.hash;
+  return hash.startsWith("#candidate-") ? hash.slice("#candidate-".length) : null;
 }

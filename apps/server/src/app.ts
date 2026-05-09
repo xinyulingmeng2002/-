@@ -105,7 +105,7 @@ export function buildServer(options: BuildServerOptions = {}) {
   app.register(messagesRoutes, { messageService });
   app.register(memoryCandidatesRoutes, { memoryCandidateStore, memoryReviewService });
   app.register(sharedKnowledgeRoutes, { sharedKnowledgeStore });
-  app.register(privateMemoriesRoutes, { privateMemoryStore, memoryReviewService });
+  app.register(privateMemoriesRoutes, { privateMemoryStore, memoryCandidateStore, memoryReviewService });
   app.register(roomSummariesRoutes, { roomSummaryStore });
   app.register(workMemoryRoutes, { workMemoryStore });
   app.register(uploadsRoutes, {

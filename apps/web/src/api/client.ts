@@ -144,6 +144,23 @@ export type PrivateMemoryOverview = {
   shareableMemories: number;
   latestUpdatedAt: string | null;
   latestSourceEventIds: string[];
+  suggestedShareCandidate: {
+    memoryId: string;
+    candidateType: "summary" | "todo" | "blocker" | "decision";
+  } | null;
+  pendingShareCandidate: {
+    candidateId: string;
+    memoryId: string;
+    candidateType: "summary" | "todo" | "blocker" | "decision";
+    submittedAt: string;
+  } | null;
+  latestShareOutcome: {
+    candidateId: string;
+    memoryId: string;
+    candidateType: "summary" | "todo" | "blocker" | "decision";
+    status: "accepted" | "rejected";
+    reviewedAt: string | null;
+  } | null;
 };
 
 export class ApiClient {
@@ -328,5 +345,25 @@ export class ApiClient {
       `/api/private-memories/summary?${params.toString()}`
     );
     return response.items;
+  }
+
+  async sharePrivateMemoryAsCandidate(input: {
+    memoryId: string;
+    agentId: string;
+    candidateType: "summary" | "todo" | "blocker" | "decision";
+  }): Promise<MemoryCandidateRecord> {
+    return this.request<MemoryCandidateRecord>(
+      `/api/private-memories/${input.memoryId}/share-candidate`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          agentId: input.agentId,
+          candidateType: input.candidateType
+        })
+      }
+    );
   }
 }

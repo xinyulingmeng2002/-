@@ -532,6 +532,15 @@ export function RoomShell({
     await refreshAgentPanel(activeRoomId);
   }
 
+  async function handleSharePrivateMemory(input: {
+    memoryId: string;
+    agentId: string;
+    candidateType: "summary" | "todo" | "blocker" | "decision";
+  }): Promise<void> {
+    await apiClient.sharePrivateMemoryAsCandidate(input);
+    await refreshAgentPanel(activeRoomId);
+  }
+
   return (
     <div className="app-shell">
       <aside className="app-panel app-panel--rooms">
@@ -596,6 +605,7 @@ export function RoomShell({
             onRevokeToken={handleRevokeToken}
             onAcceptCandidate={handleAcceptCandidate}
             onRejectCandidate={handleRejectCandidate}
+            onSharePrivateMemory={handleSharePrivateMemory}
           />
         </div>
       </aside>

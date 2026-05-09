@@ -1,12 +1,16 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import type { PrivateMemoryStore, PrivateMemoryType } from "../domain/memory/private-memory-store";
-import type { MemoryCandidateType } from "../domain/memory/memory-candidate-store";
+import type {
+  MemoryCandidateStore,
+  MemoryCandidateType
+} from "../domain/memory/memory-candidate-store";
 import type { MemoryReviewService } from "../domain/memory/memory-review-service";
 import { buildPrivateMemoryOverview } from "../domain/memory/private-memory-summary";
 
 type PrivateMemoriesRoutesOptions = {
   privateMemoryStore: PrivateMemoryStore;
+  memoryCandidateStore: MemoryCandidateStore;
   memoryReviewService: MemoryReviewService;
 };
 
@@ -26,7 +30,7 @@ export const privateMemoriesRoutes: FastifyPluginAsync<PrivateMemoriesRoutesOpti
   app,
   options
 ) => {
-  const { privateMemoryStore, memoryReviewService } = options;
+  const { privateMemoryStore, memoryCandidateStore, memoryReviewService } = options;
 
   app.get("/api/private-memories/summary", async (request, reply) => {
     const query = request.query as { roomId?: unknown };
@@ -36,7 +40,13 @@ export const privateMemoriesRoutes: FastifyPluginAsync<PrivateMemoriesRoutesOpti
     }
 
     return {
-      items: buildPrivateMemoryOverview(privateMemoryStore.listAll({ roomId: query.roomId as string | undefined }))
+      items: buildPrivateMemoryOverview(
+        privateMemoryStore.listAll({ roomId: query.roomId as string | undefined }),
+        memoryCandidateStore.list({
+          roomId: query.roomId as string | undefined,
+          scope: "shared"
+        })
+      )
     };
   });
 

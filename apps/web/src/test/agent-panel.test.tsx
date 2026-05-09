@@ -5,8 +5,10 @@ import { AgentPanel } from "../features/agents/agent-panel";
 
 describe("AgentPanel", () => {
   it("renders online agents, bridge token actions, and candidate review actions", async () => {
+    window.location.hash = "#candidate-cand-1";
     const onAcceptCandidate = vi.fn().mockResolvedValue(undefined);
     const onRejectCandidate = vi.fn().mockResolvedValue(undefined);
+    const onSharePrivateMemory = vi.fn().mockResolvedValue(undefined);
 
     render(
       <AgentPanel
@@ -74,9 +76,17 @@ describe("AgentPanel", () => {
             agentId: "agent-codex",
             roomId: "room-1",
             totalMemories: 1,
-            shareableMemories: 1,
+            shareableMemories: 0,
             latestUpdatedAt: "2026-04-15T12:10:00.000Z",
-            latestSourceEventIds: ["evt-private-1"]
+            latestSourceEventIds: ["evt-private-1"],
+            suggestedShareCandidate: null,
+            pendingShareCandidate: {
+              candidateId: "cand-1",
+              memoryId: "mem-private-1",
+              candidateType: "decision",
+              submittedAt: "2026-04-15T12:05:00.000Z"
+            },
+            latestShareOutcome: null
           }
         ]}
         workMemory={{
@@ -104,6 +114,7 @@ describe("AgentPanel", () => {
         onRevokeToken={vi.fn().mockResolvedValue(undefined)}
         onAcceptCandidate={onAcceptCandidate}
         onRejectCandidate={onRejectCandidate}
+        onSharePrivateMemory={onSharePrivateMemory}
       />
     );
 
@@ -114,9 +125,16 @@ describe("AgentPanel", () => {
     expect(screen.getByText("共享知识")).toBeInTheDocument();
     expect(screen.getByText("采用候选审核")).toBeInTheDocument();
     expect(screen.getByText("私有记忆状态")).toBeInTheDocument();
-    expect(screen.getByText("1 条私有记忆 / 1 条可提交候选")).toBeInTheDocument();
+    expect(screen.getByText("1 条私有记忆 / 0 条可提交候选")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看候选 cand-1" })).toHaveAttribute(
+      "href",
+      "#candidate-cand-1"
+    );
+    expect(screen.queryByRole("button", { name: "提交为共享候选" })).not.toBeInTheDocument();
     expect(screen.getByText("当前工作记忆")).toBeInTheDocument();
     expect(screen.getByText("补工作记忆面板")).toBeInTheDocument();
+    expect(document.getElementById("candidate-cand-1")).toHaveClass("candidate-card--target");
+    expect(document.getElementById("candidate-cand-1")).toHaveAttribute("aria-current", "true");
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "接受" }));
@@ -131,5 +149,7 @@ describe("AgentPanel", () => {
     await waitFor(() => {
       expect(onRejectCandidate).toHaveBeenCalledWith("cand-1");
     });
+
+    window.location.hash = "";
   });
 });

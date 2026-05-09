@@ -34,6 +34,11 @@ type AgentPanelProps = {
   onRevokeToken: (id: string) => Promise<void>;
   onAcceptCandidate: (candidateId: string) => Promise<void>;
   onRejectCandidate: (candidateId: string) => Promise<void>;
+  onSharePrivateMemory: (input: {
+    memoryId: string;
+    agentId: string;
+    candidateType: "summary" | "todo" | "blocker" | "decision";
+  }) => Promise<void>;
 };
 
 function resolveDisplayName(participants: ParticipantRecord[], agentId: string): string {
@@ -53,7 +58,8 @@ export function AgentPanel({
   onCreateToken,
   onRevokeToken,
   onAcceptCandidate,
-  onRejectCandidate
+  onRejectCandidate,
+  onSharePrivateMemory
 }: AgentPanelProps) {
   const connectedSessions = sessions.filter((session) => session.status === "connected");
 
@@ -99,6 +105,7 @@ export function AgentPanel({
       <PrivateMemoryOverviewPanel
         items={privateMemoryOverview}
         resolveDisplayName={(agentId) => resolveDisplayName(participants, agentId)}
+        onShareCandidate={onSharePrivateMemory}
       />
 
       <WorkMemoryPanel workMemory={workMemory} />

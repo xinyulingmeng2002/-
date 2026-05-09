@@ -404,6 +404,12 @@ body {
   gap: 12px;
 }
 
+.candidate-card--target {
+  scroll-margin-top: 16px;
+  border-color: rgba(36, 102, 214, 0.52);
+  box-shadow: 0 0 0 3px rgba(36, 102, 214, 0.14);
+}
+
 .candidate-card__actions {
   display: flex;
   justify-content: flex-end;
