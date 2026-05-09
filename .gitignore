@@ -3,6 +3,8 @@ data/bridges/
 data/db/
 data/logs/
 data/uploads/
+apps/server/data/
+apps/server/data.backup-*/
 
 # Environment
 .env
