@@ -109,6 +109,9 @@ describe("memory pipeline service", () => {
         list() {
           return [];
         },
+        listAll() {
+          return [];
+        },
         get() {
           return null;
         },

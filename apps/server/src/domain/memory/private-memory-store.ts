@@ -38,6 +38,7 @@ type CreatePrivateMemoryInput = {
 
 export interface PrivateMemoryStore {
   list(filters: { agentId: string; roomId?: string }): PrivateMemoryRecord[];
+  listAll(filters?: { roomId?: string }): PrivateMemoryRecord[];
   create(input: CreatePrivateMemoryInput): PrivateMemoryRecord;
   get(memoryId: string): PrivateMemoryRecord | null;
 }
@@ -67,6 +68,15 @@ export function createPrivateMemoryStore(
         if (record.agentId !== filters.agentId) {
           return false;
         }
+        if (filters.roomId && record.roomId !== filters.roomId) {
+          return false;
+        }
+
+        return true;
+      });
+    },
+    listAll(filters = {}) {
+      return readPrivateMemories(filePath).filter((record) => {
         if (filters.roomId && record.roomId !== filters.roomId) {
           return false;
         }

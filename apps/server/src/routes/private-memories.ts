@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from "fastify";
 import type { PrivateMemoryStore, PrivateMemoryType } from "../domain/memory/private-memory-store";
 import type { MemoryCandidateType } from "../domain/memory/memory-candidate-store";
 import type { MemoryReviewService } from "../domain/memory/memory-review-service";
+import { buildPrivateMemoryOverview } from "../domain/memory/private-memory-summary";
 
 type PrivateMemoriesRoutesOptions = {
   privateMemoryStore: PrivateMemoryStore;
@@ -26,6 +27,18 @@ export const privateMemoriesRoutes: FastifyPluginAsync<PrivateMemoriesRoutesOpti
   options
 ) => {
   const { privateMemoryStore, memoryReviewService } = options;
+
+  app.get("/api/private-memories/summary", async (request, reply) => {
+    const query = request.query as { roomId?: unknown };
+
+    if (query.roomId !== undefined && typeof query.roomId !== "string") {
+      return reply.code(400).send({ error: "roomId must be a string" });
+    }
+
+    return {
+      items: buildPrivateMemoryOverview(privateMemoryStore.listAll({ roomId: query.roomId as string | undefined }))
+    };
+  });
 
   app.get("/api/private-memories", async (request, reply) => {
     const query = request.query as { agentId?: unknown; roomId?: unknown };

@@ -81,6 +81,16 @@ describe("RoomShell", () => {
           updatedAt: "2026-04-15T12:10:00.000Z"
         }
       ]),
+      listPrivateMemoryOverview: vi.fn().mockResolvedValue([
+        {
+          agentId: "agent-codex",
+          roomId: "room-1",
+          totalMemories: 1,
+          shareableMemories: 1,
+          latestUpdatedAt: "2026-04-15T12:11:00.000Z",
+          latestSourceEventIds: ["evt-private-1"]
+        }
+      ]),
       getWorkMemory: vi.fn().mockResolvedValue({
         roomId: "room-1",
         recentMessages: [],
@@ -209,6 +219,9 @@ describe("RoomShell", () => {
     expect(await screen.findByText("补工作记忆面板")).toBeInTheDocument();
     expect(await screen.findByText("等待审核反馈")).toBeInTheDocument();
     expect(await screen.findByText("先做共享层 UI")).toBeInTheDocument();
+    expect(await screen.findByText("私有记忆状态")).toBeInTheDocument();
+    expect(await screen.findByText("agent-codex")).toBeInTheDocument();
+    expect(screen.queryByText("This should stay in codex private scope.")).not.toBeInTheDocument();
   });
 
   it("uploads a file as a formal attachment message instead of a system URL notice", async () => {
@@ -269,6 +282,7 @@ describe("RoomShell", () => {
       listBridgeSessions: vi.fn().mockResolvedValue([]),
       listMemoryCandidates: vi.fn().mockResolvedValue([]),
       listSharedKnowledge: vi.fn().mockResolvedValue([]),
+      listPrivateMemoryOverview: vi.fn().mockResolvedValue([]),
       getWorkMemory: vi.fn().mockResolvedValue({
         roomId: "room-1",
         recentMessages: [],

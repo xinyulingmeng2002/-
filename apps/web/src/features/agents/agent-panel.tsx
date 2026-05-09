@@ -4,12 +4,14 @@ import type {
   BridgeTokenCreateResponse,
   BridgeTokenRecord,
   ParticipantRecord,
+  PrivateMemoryOverview,
   RoomSummaryRecord,
   SharedKnowledgeRecord,
   WorkMemoryRecord,
   BridgeKind
 } from "../../api/client";
 import { CandidateReviewPanel } from "./candidate-review-panel";
+import { PrivateMemoryOverviewPanel } from "./private-memory-overview-panel";
 import { SharedKnowledgePanel } from "./shared-knowledge-panel";
 import { TokenManager } from "./token-manager";
 import { WorkMemoryPanel } from "./work-memory-panel";
@@ -21,6 +23,7 @@ type AgentPanelProps = {
   tokens: BridgeTokenRecord[];
   candidates: MemoryCandidateRecord[];
   sharedKnowledge: SharedKnowledgeRecord[];
+  privateMemoryOverview: PrivateMemoryOverview[];
   workMemory: WorkMemoryRecord | null;
   latestSummary: RoomSummaryRecord | null;
   onCreateToken: (input: {
@@ -44,6 +47,7 @@ export function AgentPanel({
   tokens,
   candidates,
   sharedKnowledge,
+  privateMemoryOverview,
   workMemory,
   latestSummary,
   onCreateToken,
@@ -91,6 +95,11 @@ export function AgentPanel({
       />
 
       <SharedKnowledgePanel items={sharedKnowledge} />
+
+      <PrivateMemoryOverviewPanel
+        items={privateMemoryOverview}
+        resolveDisplayName={(agentId) => resolveDisplayName(participants, agentId)}
+      />
 
       <WorkMemoryPanel workMemory={workMemory} />
 

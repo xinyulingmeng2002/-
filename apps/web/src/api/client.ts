@@ -137,6 +137,15 @@ export type WorkMemoryRecord = {
   updatedAt: string;
 };
 
+export type PrivateMemoryOverview = {
+  agentId: string;
+  roomId: string;
+  totalMemories: number;
+  shareableMemories: number;
+  latestUpdatedAt: string | null;
+  latestSourceEventIds: string[];
+};
+
 export class ApiClient {
   private readonly baseUrl: string;
 
@@ -311,5 +320,13 @@ export class ApiClient {
   async getWorkMemory(roomId: string): Promise<WorkMemoryRecord> {
     const params = new URLSearchParams({ roomId });
     return this.request<WorkMemoryRecord>(`/api/work-memory?${params.toString()}`);
+  }
+
+  async listPrivateMemoryOverview(roomId: string): Promise<PrivateMemoryOverview[]> {
+    const params = new URLSearchParams({ roomId });
+    const response = await this.request<{ items: PrivateMemoryOverview[] }>(
+      `/api/private-memories/summary?${params.toString()}`
+    );
+    return response.items;
   }
 }

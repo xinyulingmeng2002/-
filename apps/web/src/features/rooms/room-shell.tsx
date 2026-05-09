@@ -8,6 +8,7 @@ import {
   type MemoryCandidateRecord,
   type MessageEventRecord,
   type ParticipantRecord,
+  type PrivateMemoryOverview,
   type RoomRecord,
   type RoomSummaryRecord,
   type SharedKnowledgeRecord,
@@ -37,6 +38,7 @@ type AgentPanelData = {
   bridgeTokens: BridgeTokenRecord[];
   memoryCandidates: MemoryCandidateRecord[];
   sharedKnowledge: SharedKnowledgeRecord[];
+  privateMemoryOverview: PrivateMemoryOverview[];
   workMemory: WorkMemoryRecord | null;
   roomSummaries: RoomSummaryRecord[];
 };
@@ -133,6 +135,7 @@ async function loadAgentPanelData(apiClient: ApiClient, roomId: string): Promise
     bridgeTokens,
     memoryCandidates,
     sharedKnowledge,
+    privateMemoryOverview,
     workMemory,
     roomSummaries
   ] =
@@ -142,6 +145,7 @@ async function loadAgentPanelData(apiClient: ApiClient, roomId: string): Promise
       apiClient.listBridgeTokens(),
       apiClient.listMemoryCandidates({ roomId, scope: "shared", status: "proposed" }),
       apiClient.listSharedKnowledge({ roomId }),
+      apiClient.listPrivateMemoryOverview(roomId),
       apiClient.getWorkMemory(roomId),
       apiClient.listRoomSummaries(roomId)
     ]);
@@ -152,6 +156,7 @@ async function loadAgentPanelData(apiClient: ApiClient, roomId: string): Promise
     bridgeTokens,
     memoryCandidates,
     sharedKnowledge,
+    privateMemoryOverview,
     workMemory,
     roomSummaries
   };
@@ -224,6 +229,7 @@ export function RoomShell({
   const [bridgeTokens, setBridgeTokens] = useState<BridgeTokenRecord[]>([]);
   const [memoryCandidates, setMemoryCandidates] = useState<MemoryCandidateRecord[]>([]);
   const [sharedKnowledge, setSharedKnowledge] = useState<SharedKnowledgeRecord[]>([]);
+  const [privateMemoryOverview, setPrivateMemoryOverview] = useState<PrivateMemoryOverview[]>([]);
   const [workMemory, setWorkMemory] = useState<WorkMemoryRecord | null>(null);
   const [roomSummaries, setRoomSummaries] = useState<RoomSummaryRecord[]>([]);
   const socketClientRef = useRef<RoomSocketClient | null>(null);
@@ -319,6 +325,7 @@ export function RoomShell({
       setBridgeTokens([]);
       setMemoryCandidates([]);
       setSharedKnowledge([]);
+      setPrivateMemoryOverview([]);
       setWorkMemory(null);
       setRoomSummaries([]);
       return;
@@ -338,6 +345,7 @@ export function RoomShell({
         setBridgeTokens(data.bridgeTokens);
         setMemoryCandidates(data.memoryCandidates);
         setSharedKnowledge(data.sharedKnowledge);
+        setPrivateMemoryOverview(data.privateMemoryOverview);
         setWorkMemory(data.workMemory);
         setRoomSummaries(data.roomSummaries);
         setPanelErrorText("");
@@ -435,6 +443,7 @@ export function RoomShell({
     setBridgeTokens(data.bridgeTokens);
     setMemoryCandidates(data.memoryCandidates);
     setSharedKnowledge(data.sharedKnowledge);
+    setPrivateMemoryOverview(data.privateMemoryOverview);
     setWorkMemory(data.workMemory);
     setRoomSummaries(data.roomSummaries);
     setPanelErrorText("");
@@ -580,6 +589,7 @@ export function RoomShell({
             tokens={bridgeTokens}
             candidates={memoryCandidates}
             sharedKnowledge={sharedKnowledge}
+            privateMemoryOverview={privateMemoryOverview}
             workMemory={workMemory}
             latestSummary={latestSummary}
             onCreateToken={handleCreateToken}
