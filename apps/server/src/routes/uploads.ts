@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { createReadStream, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { extname, join, relative, resolve, sep } from "node:path";
 
 import multipart from "@fastify/multipart";
 import type { FastifyPluginAsync } from "fastify";
@@ -40,6 +40,45 @@ function buildAttachmentUrl(request: { protocol: string; headers: { host?: strin
   return `${request.protocol}://${host}${base}`;
 }
 
+function resolveUploadPath(uploadsDir: string, relativePath: string): string | null {
+  const root = resolve(uploadsDir);
+  const target = resolve(root, relativePath);
+  const pathFromRoot = relative(root, target);
+
+  if (pathFromRoot.startsWith("..") || pathFromRoot === ".." || pathFromRoot.startsWith(`..${sep}`)) {
+    return null;
+  }
+  if (pathFromRoot.length === 0) {
+    return null;
+  }
+
+  return target;
+}
+
+function getContentType(filePath: string): string {
+  switch (extname(filePath).toLowerCase()) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".gif":
+      return "image/gif";
+    case ".webp":
+      return "image/webp";
+    case ".svg":
+      return "image/svg+xml";
+    case ".md":
+      return "text/markdown; charset=utf-8";
+    case ".txt":
+      return "text/plain; charset=utf-8";
+    case ".pdf":
+      return "application/pdf";
+    default:
+      return "application/octet-stream";
+  }
+}
+
 export const uploadsRoutes: FastifyPluginAsync<UploadsRoutesOptions> = async (app, options) => {
   await app.register(multipart, {
     limits: {
@@ -48,6 +87,31 @@ export const uploadsRoutes: FastifyPluginAsync<UploadsRoutesOptions> = async (ap
   });
 
   const basePath = options.uploadsPublicBasePath.replace(/\/+$/, "");
+
+  if (!isAbsoluteHttpUrl(basePath)) {
+    app.get(`${basePath}/*`, async (request, reply) => {
+      const params = request.params as { "*": string };
+      const filePath = resolveUploadPath(options.uploadsDir, params["*"]);
+
+      if (!filePath) {
+        return reply.code(404).send({ error: "upload not found" });
+      }
+
+      try {
+        const stats = statSync(filePath);
+        if (!stats.isFile()) {
+          return reply.code(404).send({ error: "upload not found" });
+        }
+
+        return reply
+          .type(getContentType(filePath))
+          .header("content-length", stats.size)
+          .send(createReadStream(filePath));
+      } catch {
+        return reply.code(404).send({ error: "upload not found" });
+      }
+    });
+  }
 
   app.post("/api/uploads", async (request, reply) => {
     const file = await request.file();
