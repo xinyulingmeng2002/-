@@ -168,13 +168,16 @@ body {
 .attachment-card--image {
   display: flex;
   flex-direction: column;
+  align-self: flex-start;
+  max-width: min(100%, 360px);
 }
 
 .attachment-card__preview {
   display: block;
-  width: 100%;
-  max-height: 320px;
-  object-fit: cover;
+  width: auto;
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
   background: linear-gradient(180deg, rgba(232, 238, 255, 0.92), rgba(247, 249, 255, 0.92));
 }
 
