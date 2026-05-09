@@ -94,10 +94,7 @@ describe("PrivateMemoryOverviewPanel", () => {
             shareableMemories: 1,
             latestUpdatedAt: "2026-05-09T12:00:00.000Z",
             latestSourceEventIds: ["evt-1"],
-            suggestedShareCandidate: {
-              memoryId: "mem-1",
-              candidateType: "decision"
-            },
+            suggestedShareCandidate: null,
             pendingShareCandidate: null,
             latestShareOutcome: {
               candidateId: "cand-1",
@@ -115,7 +112,7 @@ describe("PrivateMemoryOverviewPanel", () => {
 
     expect(screen.getByText("已接受进入共享层")).toBeInTheDocument();
     expect(screen.getByText("审核于 2026-05-09T12:10:00.000Z")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "提交为共享候选" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "提交为共享候选" })).not.toBeInTheDocument();
     expect(screen.queryByText("Share this and accept it.")).not.toBeInTheDocument();
   });
 

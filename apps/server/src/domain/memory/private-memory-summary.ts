@@ -108,7 +108,10 @@ export function buildPrivateMemoryOverview(
   return [...grouped.values()]
     .map((group) => {
       const latest = [...group].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null;
-      const shareableItems = group.filter((item) => !pendingByMemoryId.has(item.memoryId));
+      const shareableItems = group.filter((item) => {
+        const outcome = latestOutcomeByMemoryId.get(item.memoryId);
+        return !pendingByMemoryId.has(item.memoryId) && outcome?.status !== "accepted";
+      });
       const latestShareable =
         [...shareableItems].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null;
       const latestPending = latest ? pendingByMemoryId.get(latest.memoryId) ?? null : null;

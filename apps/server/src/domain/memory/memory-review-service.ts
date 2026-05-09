@@ -168,11 +168,11 @@ export class MemoryReviewService {
     const existingCandidate = this.memoryCandidateStore
       .list({
         roomId: memory.roomId,
-        scope: "shared",
-        status: "proposed"
+        scope: "shared"
       })
       .find(
         (candidate) =>
+          (candidate.status === "proposed" || candidate.status === "accepted") &&
           candidate.candidateType === input.candidateType &&
           candidate.targetAgentId === memory.agentId &&
           candidate.sourceMemoryIds.includes(memory.memoryId)

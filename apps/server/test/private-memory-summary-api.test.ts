@@ -169,6 +169,8 @@ describe("private memory summary api", () => {
           expect.objectContaining({
             agentId: "agent-codex",
             roomId: "room-3",
+            shareableMemories: 0,
+            suggestedShareCandidate: null,
             pendingShareCandidate: null,
             latestShareOutcome: {
               candidateId: shared.json().candidateId,
@@ -182,6 +184,72 @@ describe("private memory summary api", () => {
       });
       expect(response.json().items[0]).not.toHaveProperty("title");
       expect(response.json().items[0]).not.toHaveProperty("body");
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("does not create another shared candidate after a private memory was accepted", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/private-memories",
+        payload: {
+          agentId: "agent-codex",
+          roomId: "room-5",
+          memoryType: "insight",
+          title: "Accepted once",
+          body: "Do not submit this again after acceptance.",
+          tags: ["review"],
+          confidence: 0.8,
+          sourceEventIds: ["evt-5"]
+        }
+      });
+
+      const shared = await app.inject({
+        method: "POST",
+        url: `/api/private-memories/${created.json().memoryId as string}/share-candidate`,
+        payload: {
+          agentId: "agent-codex",
+          candidateType: "decision"
+        }
+      });
+
+      expect(shared.statusCode).toBe(201);
+
+      const accepted = await app.inject({
+        method: "POST",
+        url: `/api/memory-candidates/${shared.json().candidateId as string}/accept`,
+        payload: {
+          reviewedBy: "human-1"
+        }
+      });
+
+      expect(accepted.statusCode).toBe(200);
+
+      const repeated = await app.inject({
+        method: "POST",
+        url: `/api/private-memories/${created.json().memoryId as string}/share-candidate`,
+        payload: {
+          agentId: "agent-codex",
+          candidateType: "decision"
+        }
+      });
+
+      expect(repeated.statusCode).toBe(201);
+      expect(repeated.json()).toEqual(expect.objectContaining({ candidateId: shared.json().candidateId }));
+
+      const candidates = await app.inject({
+        method: "GET",
+        url: "/api/memory-candidates?roomId=room-5&scope=shared"
+      });
+
+      expect(candidates.statusCode).toBe(200);
+      expect(candidates.json().items).toHaveLength(1);
     } finally {
       await app.close();
       cleanupTempDir(tempDir);
