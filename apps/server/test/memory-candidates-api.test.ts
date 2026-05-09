@@ -337,4 +337,70 @@ describe("memory candidates api", () => {
       cleanupTempDir(tempDir);
     }
   });
+
+  it("does not let an accepted candidate transition back to rejected", async () => {
+    const tempDir = createTempDir();
+    const candidateStore = createMemoryCandidateStore(tempDir);
+    const eventLogStore = createEventLogStore(tempDir);
+    const app = buildServer({ dataDir: tempDir });
+
+    candidateStore.create({
+      candidateId: "cand-5",
+      roomId: "room-5",
+      scope: "shared",
+      candidateType: "decision",
+      title: "Keep review terminal",
+      body: "Accepted candidates should not flip back to rejected.",
+      status: "proposed",
+      proposedBy: "observer",
+      sourceEventIds: ["evt-5"],
+      sourceMemoryIds: [],
+      targetAgentId: null,
+      createdAt: "2026-04-30T00:00:00.000Z",
+      reviewedAt: null,
+      reviewedBy: null,
+      acceptedInto: []
+    });
+
+    try {
+      const accepted = await app.inject({
+        method: "POST",
+        url: "/api/memory-candidates/cand-5/accept",
+        payload: {
+          reviewedBy: "human-1"
+        }
+      });
+      const rejected = await app.inject({
+        method: "POST",
+        url: "/api/memory-candidates/cand-5/reject",
+        payload: {
+          reviewedBy: "human-1"
+        }
+      });
+
+      expect(accepted.statusCode).toBe(200);
+      expect(rejected.statusCode).toBe(200);
+      expect(rejected.json()).toEqual(
+        expect.objectContaining({
+          candidateId: "cand-5",
+          status: "accepted",
+          acceptedInto: ["l0", "l2"]
+        })
+      );
+
+      const knowledge = await app.inject({
+        method: "GET",
+        url: "/api/shared-knowledge?roomId=room-5"
+      });
+
+      expect(knowledge.statusCode).toBe(200);
+      expect(knowledge.json().items).toHaveLength(1);
+      expect(
+        eventLogStore.list("room-5").filter((event) => event.kind === "memory.candidate.rejected")
+      ).toHaveLength(0);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
 });

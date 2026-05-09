@@ -127,6 +127,9 @@ export class MemoryReviewService {
     if (!existing) {
       return null;
     }
+    if (existing.status === "accepted") {
+      return existing;
+    }
 
     const rejected: MemoryCandidateRecord = {
       ...existing,
