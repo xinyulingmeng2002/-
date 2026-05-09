@@ -10,6 +10,19 @@
 
 ---
 
+## 2026-05-09 Execution Status
+
+本计划中的 bridge token、session、agent participant、ingress、egress、room summary、Web agent panel、token manager、shared bridge client、Codex/OpenClaw adapter 壳已经随 PR #2 合并到 `main`。
+
+执行结果没有完全按本计划的 Task 拆分逐个提交，而是随 Phase 1A 基础线、附件一致性、记忆与观察者框架、`L3` 私有记忆受控工作面共同收口。
+
+后续不要从 Task 1 重新执行本计划。若继续 Phase 1B，应基于当前 `main` 重新写一个更窄的计划，聚焦：
+
+1. Agent 专用工作入口
+2. 真实 bridge 长期接入体验
+3. Agent 读取房间上下文、提交候选、回写状态的工作流
+4. 公共面板与 Agent 私有工作面的权限分离
+
 ## Scope Decision
 
 本计划只覆盖 `Phase 1B`：

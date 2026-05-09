@@ -1,6 +1,6 @@
 # 多智能体协作台
 
-Phase 1A 已完成的独立仓库底座，包含：
+Phase 1A 已合并到 `main` 的独立协作台底座，包含：
 
 - `apps/server`：Fastify + Socket.IO 服务端
 - `apps/web`：React + Vite 最小协作前端
@@ -8,6 +8,12 @@ Phase 1A 已完成的独立仓库底座，包含：
 - `apps/bridges/codex`：Codex 可运行 bridge CLI 适配器
 - `apps/bridges/openclaw`：OpenClaw 可运行 bridge CLI 适配器
 - `packages/protocol`：共享协议与 Zod schema
+
+当前状态：
+
+- Phase 1A 基础线已经完成并合并：空间 / 房间、消息、附件、Web 时间线、参与者、bridge token/session、候选审核、共享知识、工作记忆、房间摘要、`L3` 私有记忆受控工作面
+- 当前主线未变：这是独立多 Agent 协作底座，不替代小窝本体，不把 OpenClaw / Codex 运行时绑死进平台核心
+- 下一阶段优先级：从 `main` 新开 Phase 1B 后续分支，做 Agent 专用工作入口与真实 bridge 接入体验，不继续扩大公共右侧面板
 
 ## 安装
 
@@ -33,7 +39,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 ## Bridge 接入流程
 
-当前 Phase 1B 已经具备 bridge token、agent session、房间绑定与消息入口骨架。
+当前已经具备 bridge token、agent session、房间绑定、消息入口、附件入口与事件拉取骨架。
 
 推荐流程：
 
@@ -58,18 +64,31 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 - `apps/bridges/shared/src/client.ts`
 
-## 房间摘要与沉淀
+## 记忆、摘要与沉淀
 
-当前摘要层是轻量骨架，不做 L2/L3 记忆，只在每 2 条新消息后落 1 次快照。
+当前摘要层是轻量骨架，每 2 条新消息后落 1 次快照。记忆层已经具备最小分层：
+
+- `L0`：房间工作记忆，保存待办、阻塞、决策和摘要引用
+- `L1`：房间事件日志，作为原始事实来源
+- `L2`：共享知识，候选被人工接受后进入共享层
+- `L3`：Agent 私有记忆，普通公共面板只显示去敏概览，私有原文不能直接旁路展示
 
 - bridge egress：`GET /api/bridge/egress/events?agentId=<id>&roomId=<roomId>&afterEventId=<eventId>&limit=<n>`
 - API：`GET /api/room-summaries?roomId=<roomId>`
-- bridge session：`data/bridges/<bridge-kind>/session.json`
-- 存储：`data/db/room-summaries.json`
-- 工作记忆：`data/db/work-memory.json`
-- 事件日志：`data/logs/rooms/<roomId>.jsonl`
+- bridge session：`apps/server/data/bridges/<bridge-kind>/session.json`
+- 存储：`apps/server/data/db/room-summaries.json`
+- 工作记忆：`apps/server/data/db/work-memory.json`
+- 事件日志：`apps/server/data/logs/rooms/<roomId>.jsonl`
 
 前端会在房间主时间线和右侧 agent 面板同时展示最新摘要。
+
+`L3` 私有记忆只能通过以下受控路径进入共享层：
+
+```text
+private memory -> shared candidate -> human review -> shared layer
+```
+
+已接受的私有记忆不会再次显示“提交为共享候选”入口，同源已接受候选也不会被重复创建。
 
 ## 测试与检查
 
@@ -110,11 +129,13 @@ npm --workspace @ma/bridge-shared run typecheck
 
 ## 数据目录
 
-运行时数据默认写入仓库根下的 `data/`，并已加入 `.gitignore`：
+开发环境通过 `npm run dev:server` 启动时，运行时数据默认写入 `apps/server/data/`：
 
-- `data/bridges/`：bridge session 文件，包含临时 token 与 session 上下文
-- `data/db/`：文件型快照存储
-- `data/logs/`：房间事件日志 JSONL
-- `data/uploads/`：上传文件落盘目录
+- `apps/server/data/bridges/`：bridge session 文件，包含临时 token 与 session 上下文
+- `apps/server/data/db/`：文件型快照存储
+- `apps/server/data/logs/`：房间事件日志 JSONL
+- `apps/server/data/uploads/`：上传文件落盘目录
 
 测试使用临时目录，不会污染仓库内运行时数据。
+
+说明：本地验收可能会产生 `apps/server/data/` 或 `apps/server/data.backup-*`。这些属于运行数据，不应提交到 Git。

@@ -5,6 +5,27 @@
 - 上游规格：`docs/2026-04-15-多智能体协作台-设计规格.md`
 - 当前目标：把平台从“可跑的底座”推进到“可长期真实使用的完整骨架”
 
+## 2026-05-09 状态更新
+
+本规格中的大部分 Phase 1B 骨架能力已经在 PR #2 中随 Phase 1A 基础线一起合并到 `main`：
+
+1. bridge token
+2. bridge session
+3. agent participant
+4. join room / heartbeat / disconnect
+5. bridge ingress message
+6. bridge egress events
+7. room summary snapshot
+8. Codex / OpenClaw adapter CLI 壳
+9. shared bridge client
+10. Web agent 面板与 token 管理
+
+同时，后续新增的 `L2/L3` 受控记忆工作面也已经落入当前 `main`，但仍保持“私有记忆不自动公开”的边界。
+
+本文件仍作为 bridge 骨架设计来源保留。下一阶段不应重复实现这里已完成的 token/session/adapter 壳，而应从当前 `main` 出发，继续做：
+
+`Agent 专用工作入口 / 真实 bridge 接入体验`
+
 ## 1. 本阶段目标
 
 Phase 1A 已经具备：

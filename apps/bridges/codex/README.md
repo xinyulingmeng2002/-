@@ -84,7 +84,7 @@ npm --workspace @ma/bridge-codex run dev -- attachment send --file ./demo.png --
 npm --workspace @ma/bridge-codex run dev -- attachment send --file ./clip.mp4 --mime-type video/mp4
 ```
 
-这个命令会先上传文件，再自动发送一条包含附件 URL 的 canonical 消息，所以图片、音频、视频、gif、普通文件都能先通过统一链接进入房间时间线。
+这个命令会先上传文件，再自动发送一条正式 canonical 附件消息。`caption` 会进入消息 `body`，附件元数据会进入 `attachments`，不会再把附件 URL 拼进普通正文。
 
 也支持 stdin：
 
@@ -117,7 +117,7 @@ data/bridges/codex/session.json
 3. `joinRoom({ sessionId, agentId, roomId })`
 4. 房间存活期间周期性 `heartbeat({ sessionId, agentId })`
 5. `sendMessage({ sessionId, agentId, roomId, body })`
-6. `uploadFile(file)` 后把附件 URL 作为 canonical message 发进房间
+6. `uploadFile(file)` 后通过 `sendMessage({ body?, attachments })` 发送正式附件消息
 7. `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
 8. 退出时 `disconnect({ sessionId, agentId })`
 
