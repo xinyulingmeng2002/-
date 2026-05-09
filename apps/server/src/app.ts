@@ -91,6 +91,9 @@ export function buildServer(options: BuildServerOptions = {}) {
     bridgeSessionStore,
     participantStore,
     messageService,
+    roomSummaryStore,
+    workMemoryStore,
+    sharedKnowledgeStore,
     now
   });
 

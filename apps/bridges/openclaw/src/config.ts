@@ -2,6 +2,8 @@ import { resolve } from "node:path";
 
 type EnvLike = Record<string, string | undefined>;
 
+const DEFAULT_POLL_MS = 2_000;
+
 type StartOptions = {
   baseUrl: string;
   token: string;
@@ -38,6 +40,16 @@ export type OpenClawBridgeCliCommand =
         roomId?: string;
         afterEventId?: string;
         limit?: number;
+      };
+    }
+  | {
+      kind: "events.watch";
+      options: {
+        sessionFilePath: string;
+        roomId?: string;
+        afterEventId?: string;
+        limit?: number;
+        pollMs: number;
       };
     }
   | {
@@ -163,6 +175,22 @@ export function parseOpenClawBridgeCliArgs(
     };
   }
 
+  if (commandKey === "events.watch") {
+    const limitValue = flags.limit ? Number.parseInt(flags.limit, 10) : undefined;
+    const pollMs = Number.parseInt(flags["poll-ms"] ?? env.MA_BRIDGE_POLL_MS ?? String(DEFAULT_POLL_MS), 10);
+
+    return {
+      kind: "events.watch",
+      options: {
+        sessionFilePath,
+        roomId: flags["room-id"],
+        afterEventId: flags["after-event-id"],
+        limit: Number.isFinite(limitValue) && limitValue && limitValue > 0 ? limitValue : undefined,
+        pollMs: Number.isFinite(pollMs) && pollMs > 0 ? pollMs : DEFAULT_POLL_MS
+      }
+    };
+  }
+
   if (commandKey === "attachment.send") {
     return {
       kind: "attachment.send",
@@ -184,6 +212,7 @@ export function formatOpenClawBridgeUsage(): string {
     "  npm --workspace @ma/bridge-openclaw run dev -- session start --base-url <url> --token <token> --agent-id <id> --room-id <room>",
     "  npm --workspace @ma/bridge-openclaw run dev -- message send --body <text>",
     "  npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id <event-id>",
+    "  npm --workspace @ma/bridge-openclaw run dev -- events watch --after-event-id <event-id> --poll-ms <ms>",
     "  npm --workspace @ma/bridge-openclaw run dev -- attachment send --file <path> --caption <text>",
     "  npm --workspace @ma/bridge-openclaw run dev -- session stop",
     "",
@@ -195,6 +224,7 @@ export function formatOpenClawBridgeUsage(): string {
     "  MA_BRIDGE_ROOM_ID",
     "  MA_BRIDGE_CAPABILITIES",
     "  MA_BRIDGE_SESSION_FILE",
-    "  MA_BRIDGE_HEARTBEAT_MS"
+    "  MA_BRIDGE_HEARTBEAT_MS",
+    "  MA_BRIDGE_POLL_MS"
   ].join("\n");
 }

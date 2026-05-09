@@ -40,7 +40,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 ## Bridge 接入流程
 
-当前已经具备 bridge token、agent session、房间绑定、消息入口、附件入口与事件拉取骨架。
+当前已经具备 bridge token、agent session、房间绑定、消息入口、附件入口、事件拉取、房间工作快照与 adapter 轮询监听骨架。
 
 推荐流程：
 
@@ -54,7 +54,15 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 8. 发言时调用 `sendMessage({ sessionId, agentId, roomId, body })`
 9. 上传附件时调用 `uploadFile(file)`，再通过 `sendMessage({ body?, attachments })` 发送正式 canonical 附件消息
 10. 拉取房间新事件时调用 `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
-11. 退出时调用 `disconnect({ sessionId, agentId })`
+11. 需要一次性恢复房间工作面时调用 `getWorkspaceSnapshot({ sessionId, agentId, roomId, eventLimit? })`
+12. 长时间运行的 adapter 可以用 `events watch` 在外层持续轮询并自行保存 cursor
+13. 退出时调用 `disconnect({ sessionId, agentId })`
+
+通用 Agent 工作入口：
+
+- `GET /api/bridge/egress/workspace?agentId=<id>&sessionId=<id>&roomId=<roomId>&eventLimit=<n>`：返回当前 Agent、session、房间、参与者、最新摘要、工作记忆、共享知识、最近事件与 `nextCursor`
+- `GET /api/bridge/egress/events?agentId=<id>&roomId=<roomId>&afterEventId=<eventId>&limit=<n>`：返回房间事件增量，供 adapter 轮询
+- `@ma/bridge-shared` 已提供 `getWorkspaceSnapshot()` 和 `pullEvents()`，Codex / OpenClaw 只是这条统一边界上的首批示范适配器
 
 适配器壳说明位于：
 
@@ -74,7 +82,8 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 - `L2`：共享知识，候选被人工接受后进入共享层
 - `L3`：Agent 私有记忆，普通公共面板只显示去敏概览，私有原文不能直接旁路展示
 
-- bridge egress：`GET /api/bridge/egress/events?agentId=<id>&roomId=<roomId>&afterEventId=<eventId>&limit=<n>`
+- bridge egress events：`GET /api/bridge/egress/events?agentId=<id>&roomId=<roomId>&afterEventId=<eventId>&limit=<n>`
+- bridge egress workspace：`GET /api/bridge/egress/workspace?agentId=<id>&sessionId=<id>&roomId=<roomId>&eventLimit=<n>`
 - API：`GET /api/room-summaries?roomId=<roomId>`
 - bridge session：`apps/server/data/bridges/<bridge-kind>/session.json`
 - 存储：`apps/server/data/db/room-summaries.json`

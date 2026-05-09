@@ -95,6 +95,13 @@ type PullEventsOptions = SessionFileOptions & {
   limit?: number;
 };
 
+type WatchEventsOptions = PullEventsOptions & {
+  pollMs: number;
+  onBatch?: (batch: unknown) => void | Promise<void>;
+  sleep?: (ms: number) => Promise<void>;
+  signal?: AbortSignal;
+};
+
 type SendAttachmentOptions = SessionFileOptions & {
   filePath: string;
   caption?: string;
@@ -256,6 +263,44 @@ export async function pullCodexBridgeEvents<T = unknown>(
     afterEventId: options.afterEventId,
     limit: options.limit
   });
+}
+
+function resolveNextCursor(batch: unknown, fallback: string | undefined): string | undefined {
+  const nextCursor = (batch as { nextCursor?: unknown })?.nextCursor;
+  return typeof nextCursor === "string" && nextCursor.length > 0 ? nextCursor : fallback;
+}
+
+function hasBatchItems(batch: unknown): boolean {
+  const items = (batch as { items?: unknown })?.items;
+  return Array.isArray(items) && items.length > 0;
+}
+
+async function defaultSleep(ms: number): Promise<void> {
+  await new Promise((resolvePromise) => {
+    setTimeout(resolvePromise, ms);
+  });
+}
+
+export async function watchCodexBridgeEvents(options: WatchEventsOptions): Promise<void> {
+  let afterEventId = options.afterEventId;
+  const sleep = options.sleep ?? defaultSleep;
+
+  while (!options.signal?.aborted) {
+    const batch = await pullCodexBridgeEvents({
+      client: options.client,
+      sessionFilePath: options.sessionFilePath,
+      roomId: options.roomId,
+      afterEventId,
+      limit: options.limit
+    });
+
+    if (hasBatchItems(batch)) {
+      await options.onBatch?.(batch);
+    }
+
+    afterEventId = resolveNextCursor(batch, afterEventId);
+    await sleep(options.pollMs);
+  }
 }
 
 export async function sendCodexBridgeAttachment<
