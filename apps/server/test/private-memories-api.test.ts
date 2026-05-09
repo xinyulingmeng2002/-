@@ -245,4 +245,54 @@ describe("private memories api", () => {
       cleanupTempDir(tempDir);
     }
   });
+
+  it("rejects sharing a private memory that belongs to another agent", async () => {
+    const tempDir = createTempDir();
+    const eventLogStore = createEventLogStore(tempDir);
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/private-memories",
+        payload: {
+          agentId: "agent-codex",
+          roomId: "room-4",
+          memoryType: "insight",
+          title: "Codex-only note",
+          body: "This should stay in codex private scope.",
+          tags: ["private"],
+          confidence: 0.7,
+          sourceEventIds: ["evt-4"]
+        }
+      });
+
+      const memoryId = created.json().memoryId as string;
+      const shared = await app.inject({
+        method: "POST",
+        url: `/api/private-memories/${memoryId}/share-candidate`,
+        payload: {
+          agentId: "agent-openclaw",
+          candidateType: "decision"
+        }
+      });
+
+      expect(shared.statusCode).toBe(403);
+      expect(shared.json()).toEqual({ error: "private memory does not belong to agent" });
+
+      const candidates = await app.inject({
+        method: "GET",
+        url: "/api/memory-candidates?roomId=room-4&scope=shared&status=proposed"
+      });
+
+      expect(candidates.statusCode).toBe(200);
+      expect(candidates.json()).toEqual({ items: [] });
+      expect(
+        eventLogStore.list("room-4").filter((event) => event.kind === "memory.candidate.submitted")
+      ).toHaveLength(0);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
 });
