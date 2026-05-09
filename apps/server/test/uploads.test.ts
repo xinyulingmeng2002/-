@@ -1,0 +1,150 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { buildServer } from "../src/app";
+import { cleanupTempDir, createTempDir } from "./helpers";
+import { makeMultipartFile, multipartHeaders } from "./multipart";
+
+const pngBuffer = Buffer.from("89504E470D0A1A0A", "hex");
+
+describe("uploads api", () => {
+  it("stores attachment files and returns message-safe metadata", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/uploads",
+        payload: makeMultipartFile("diagram.png", "image/png", pngBuffer),
+        headers: multipartHeaders
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json() as {
+        attachment: {
+          id: string;
+          messageId: string;
+          kind: string;
+          url: string;
+          name: string;
+          mimeType: string;
+          sizeBytes: number;
+        };
+        originalName: string;
+      };
+      expect(body).toMatchObject({
+        attachment: {
+          kind: "image",
+          messageId: "",
+          name: "diagram.png",
+          mimeType: "image/png",
+          sizeBytes: pngBuffer.byteLength
+        },
+        originalName: "diagram.png"
+      });
+      expect(Object.keys(body.attachment).sort()).toEqual([
+        "id",
+        "kind",
+        "messageId",
+        "mimeType",
+        "name",
+        "sizeBytes",
+        "url"
+      ]);
+
+      const attachmentUrl = new URL(body.attachment.url);
+      expect(attachmentUrl.protocol).toBe("http:");
+      expect(attachmentUrl.host).toBe("localhost");
+
+      const relativePath = attachmentUrl.pathname.replace(/^\/uploads\//, "");
+      const storedPath = join(tempDir, "data", "uploads", relativePath);
+      expect(readFileSync(storedPath)).toEqual(pngBuffer);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("serves stored attachment files from their public upload URL", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const uploaded = await app.inject({
+        method: "POST",
+        url: "/api/uploads",
+        payload: makeMultipartFile("diagram.png", "image/png", pngBuffer),
+        headers: multipartHeaders
+      });
+
+      expect(uploaded.statusCode).toBe(201);
+
+      const body = uploaded.json() as {
+        attachment: {
+          url: string;
+        };
+      };
+      const attachmentUrl = new URL(body.attachment.url);
+      const served = await app.inject({
+        method: "GET",
+        url: attachmentUrl.pathname
+      });
+
+      expect(served.statusCode).toBe(200);
+      expect(served.headers["content-type"]).toBe("image/png");
+      expect(served.rawPayload).toEqual(pngBuffer);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("does not serve files outside the upload directory", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/uploads/2026/05/../../db/spaces.json"
+      });
+
+      expect(response.statusCode).toBe(404);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("uses absolute configured uploads URL as-is", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({
+      dataDir: tempDir,
+      uploadsPublicBasePath: "https://cdn.example.com/uploads"
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/uploads",
+        payload: makeMultipartFile("diagram.png", "image/png", pngBuffer),
+        headers: multipartHeaders
+      });
+
+      expect(response.statusCode).toBe(201);
+
+      const body = response.json() as {
+        attachment: {
+          url: string;
+        };
+      };
+      expect(body.attachment.url.startsWith("https://cdn.example.com/uploads/")).toBe(true);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+});

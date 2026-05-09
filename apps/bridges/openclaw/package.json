@@ -1,0 +1,17 @@
+{
+  "name": "@ma/bridge-openclaw",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx/esm src/cli.ts",
+    "test": "vitest --root ../../.. --config apps/bridges/openclaw/vitest.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ma/bridge-shared": "0.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

@@ -1,4 +1,5 @@
 # Runtime data
+data/bridges/
 data/db/
 data/logs/
 data/uploads/
@@ -15,6 +16,7 @@ dist/
 build/
 .next/
 coverage/
+.superpowers/
 
 # OS / editor
 .DS_Store

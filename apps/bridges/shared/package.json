@@ -1,0 +1,14 @@
+{
+  "name": "@ma/bridge-shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client.ts",
+    "./config": "./src/config.ts"
+  },
+  "scripts": {
+    "test": "vitest --root ../../.. --config apps/bridges/shared/vitest.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}
