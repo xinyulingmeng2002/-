@@ -56,7 +56,8 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 10. 拉取房间新事件时调用 `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
 11. 需要一次性恢复房间工作面时调用 `getWorkspaceSnapshot({ sessionId, agentId, roomId, eventLimit? })`
 12. 长时间运行的 adapter 可以用 `events watch` 在外层持续轮询并自行保存 cursor
-13. 退出时调用 `disconnect({ sessionId, agentId })`
+13. 如果需要浏览器里的独立 Agent 工作台，可打开 `?view=agent-workspace&roomId=<roomId>`，再粘贴 bridge token 手动连接
+14. 退出时调用 `disconnect({ sessionId, agentId })`
 
 通用 Agent 工作入口：
 

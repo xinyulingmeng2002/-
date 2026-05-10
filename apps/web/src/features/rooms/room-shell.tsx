@@ -30,6 +30,7 @@ type RoomShellProps = {
   apiClient: ApiClient;
   speakerParticipantId?: string;
   createSocketClient?: (baseUrl?: string) => RoomSocketClient;
+  onOpenAgentWorkspace?: (roomId: string) => void;
 };
 
 type AgentPanelData = {
@@ -215,7 +216,8 @@ function buildParticipants(
 export function RoomShell({
   apiClient,
   speakerParticipantId = DEFAULT_SPEAKER_PARTICIPANT_ID,
-  createSocketClient = createRoomSocketClient
+  createSocketClient = createRoomSocketClient,
+  onOpenAgentWorkspace
 }: RoomShellProps) {
   const [statusText, setStatusText] = useState("正在连接协作空间…");
   const [errorText, setErrorText] = useState("");
@@ -587,6 +589,15 @@ export function RoomShell({
           <span className="panel-eyebrow">Presence</span>
           <h2>参与者</h2>
           <p className="panel-caption">房间参与者、bridge 会话、token 与摘要</p>
+          {onOpenAgentWorkspace && activeRoomId ? (
+            <button
+              type="button"
+              className="panel-link-button"
+              onClick={() => onOpenAgentWorkspace(activeRoomId)}
+            >
+              打开 Agent 工作台
+            </button>
+          ) : null}
         </div>
         <div className="panel-body panel-body--scroll panel-body--stack">
           {panelErrorText ? <div className="status-banner">{panelErrorText}</div> : null}
