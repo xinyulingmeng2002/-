@@ -54,6 +54,10 @@ export type BridgeWorkspaceEventsRequest = BridgeWorkspaceRequest & {
   limit?: number;
 };
 
+export type BridgeWorkspaceMessageRequest = BridgeWorkspaceRequest & {
+  body: string;
+};
+
 async function requestJson<T>(path: string, token: string): Promise<T> {
   const response = await fetch(path, {
     headers: {
@@ -108,4 +112,29 @@ export async function fetchBridgeWorkspaceEvents(
     `${input.baseUrl}/api/bridge/egress/events?${params.toString()}`,
     input.bridgeToken
   );
+}
+
+export async function sendBridgeWorkspaceMessage(
+  input: BridgeWorkspaceMessageRequest
+): Promise<MessageEventRecord> {
+  const response = await fetch(`${input.baseUrl}/api/bridge/ingress/message`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${input.bridgeToken}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      agentId: input.agentId,
+      sessionId: input.sessionId,
+      roomId: input.roomId,
+      body: input.body
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`bridge_workspace_request_failed:${response.status}`);
+  }
+
+  return (await response.json()) as MessageEventRecord;
 }
