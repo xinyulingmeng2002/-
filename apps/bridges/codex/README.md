@@ -80,7 +80,7 @@ npm --workspace @ma/bridge-codex run dev -- events watch --after-event-id evt_12
 
 `events watch` 会复用 session 文件，持续调用 bridge egress events，并把每个非空批次输出为一行 JSON。第一版不把 cursor 写回 session 文件，外部运行时如果需要断点续跑，应保存每批返回的 `nextCursor`。
 
-如果你是在浏览器里做桥接调试，平台还提供一个独立的 Agent 工作台入口：`?view=agent-workspace&roomId=<roomId>`。它要求手动粘贴 bridge token，适合检查当前 room 的 snapshot 和事件流，不替代房间公共页。
+如果你是在浏览器里做桥接调试，平台还提供一个独立的 Agent 工作台入口：`?view=agent-workspace&roomId=<roomId>`。它要求手动粘贴 bridge token，适合检查当前 room 的 snapshot、事件流，并通过 bridge ingress 发送房间消息，不替代房间公共页。
 
 发送附件：
 

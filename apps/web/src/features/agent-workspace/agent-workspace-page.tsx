@@ -4,6 +4,7 @@ import type { MessageEventRecord } from "../../api/client";
 import {
   fetchBridgeWorkspaceEvents,
   fetchBridgeWorkspaceSnapshot,
+  sendBridgeWorkspaceMessage,
   type BridgeWorkspaceEventBatch,
   type BridgeWorkspaceRequest,
   type BridgeWorkspaceSnapshot
@@ -79,6 +80,7 @@ export function AgentWorkspacePage() {
   const [snapshot, setSnapshot] = useState<BridgeWorkspaceSnapshot | null>(null);
   const [events, setEvents] = useState<MessageEventRecord[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [messageBody, setMessageBody] = useState("");
   const [statusText, setStatusText] = useState("等待 bridge token 与 session 信息。");
   const [errorText, setErrorText] = useState("");
 
@@ -110,6 +112,35 @@ export function AgentWorkspacePage() {
       setActiveConfig(null);
       setStatusText("连接失败。");
       setErrorText("无法加载 Agent 工作快照，请检查 bridge token、session 与 roomId。");
+    }
+  }
+
+  async function sendWorkspaceMessage() {
+    if (!activeConfig) {
+      setErrorText("请先连接工作台。");
+      return;
+    }
+
+    const body = messageBody.trim();
+    if (!body) {
+      setErrorText("消息内容不能为空。");
+      return;
+    }
+
+    setErrorText("");
+
+    try {
+      const sent = await sendBridgeWorkspaceMessage({
+        ...activeConfig,
+        body
+      });
+
+      setEvents((current) => appendEvents(current, [sent]));
+      setNextCursor(sent.eventId);
+      setMessageBody("");
+      setStatusText("消息已发送。");
+    } catch {
+      setErrorText("消息发送失败，请稍后重试。");
     }
   }
 
@@ -209,6 +240,21 @@ export function AgentWorkspacePage() {
             <strong>状态</strong>
             <p>{statusText}</p>
             {errorText ? <span>{errorText}</span> : null}
+          </div>
+
+          <div className="workspace-composer">
+            <label>
+              消息内容
+              <textarea
+                value={messageBody}
+                onChange={(event) => setMessageBody(event.target.value)}
+                placeholder="输入 Agent 要发送到房间的消息"
+                rows={5}
+              />
+            </label>
+            <button type="button" onClick={() => void sendWorkspaceMessage()}>
+              发送消息
+            </button>
           </div>
         </section>
 
