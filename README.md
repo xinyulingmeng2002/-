@@ -57,7 +57,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 11. 需要一次性恢复房间工作面时调用 `getWorkspaceSnapshot({ sessionId, agentId, roomId, eventLimit? })`
 12. 示例 adapter 可用 `workspace snapshot --event-limit <n>` 从已保存 session 文件拉取一次房间工作快照
 13. 长时间运行的 adapter 可以用 `events watch` 在外层持续轮询并自行保存 cursor
-14. 如果需要浏览器里的独立 Agent 工作台，可打开 `?view=agent-workspace&roomId=<roomId>`，再粘贴 bridge token 手动连接、查看快照、监听事件、通过 bridge ingress 发送房间消息，并把去敏私有记忆概览中的可共享项提交为共享候选
+14. 如果需要浏览器里的独立 Agent 工作台，可打开 `?view=agent-workspace&roomId=<roomId>`，再粘贴 bridge token 手动连接、查看快照、监听事件、通过 bridge ingress 发送文字或正式附件消息，并把去敏私有记忆概览中的可共享项提交为共享候选
 15. 退出时调用 `disconnect({ sessionId, agentId })`
 
 通用 Agent 工作入口：

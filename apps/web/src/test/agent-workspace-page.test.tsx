@@ -6,7 +6,8 @@ import {
   fetchBridgeWorkspaceSnapshot,
   fetchBridgeWorkspacePrivateMemoryOverview,
   shareBridgeWorkspacePrivateMemory,
-  sendBridgeWorkspaceMessage
+  sendBridgeWorkspaceMessage,
+  uploadBridgeWorkspaceFile
 } from "../features/agent-workspace/bridge-workspace-client";
 
 vi.mock("../features/agent-workspace/bridge-workspace-client", () => {
@@ -15,7 +16,8 @@ vi.mock("../features/agent-workspace/bridge-workspace-client", () => {
     fetchBridgeWorkspaceEvents: vi.fn(),
     fetchBridgeWorkspacePrivateMemoryOverview: vi.fn(),
     shareBridgeWorkspacePrivateMemory: vi.fn(),
-    sendBridgeWorkspaceMessage: vi.fn()
+    sendBridgeWorkspaceMessage: vi.fn(),
+    uploadBridgeWorkspaceFile: vi.fn()
   };
 });
 
@@ -26,6 +28,7 @@ describe("AgentWorkspacePage", () => {
     vi.mocked(fetchBridgeWorkspaceSnapshot).mockReset();
     vi.mocked(fetchBridgeWorkspaceEvents).mockReset();
     vi.mocked(sendBridgeWorkspaceMessage).mockReset();
+    vi.mocked(uploadBridgeWorkspaceFile).mockReset();
     vi.mocked(fetchBridgeWorkspacePrivateMemoryOverview).mockReset();
     vi.mocked(shareBridgeWorkspacePrivateMemory).mockReset();
     window.history.pushState(
@@ -315,6 +318,117 @@ describe("AgentWorkspacePage", () => {
       })
     );
     expect(screen.getByText("开始接续。")).toBeInTheDocument();
+  });
+
+  it("uploads a file and sends it as a bridge workspace attachment", async () => {
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValue({
+      agent: {
+        id: "agent-codex-main",
+        displayName: "Codex",
+        capabilities: ["chat", "code"]
+      },
+      session: {
+        id: "session-1",
+        activeRoomIds: ["room-1"],
+        lastSeenAt: "2026-05-10T00:00:00.000Z",
+        expiresAt: "2026-05-10T00:02:00.000Z"
+      },
+      room: { id: "room-1" },
+      participants: [],
+      latestSummary: null,
+      workMemory: null,
+      sharedKnowledge: [],
+      memoryCandidates: [],
+      recentEvents: [],
+      nextCursor: null
+    });
+    vi.mocked(uploadBridgeWorkspaceFile).mockResolvedValue({
+      attachment: {
+        id: "att-1",
+        messageId: "",
+        kind: "file",
+        url: "/uploads/2026/05/spec.md",
+        name: "spec.md",
+        mimeType: "text/markdown",
+        sizeBytes: 128
+      },
+      originalName: "spec.md",
+      mimeType: "text/markdown",
+      sizeBytes: 128
+    });
+    vi.mocked(sendBridgeWorkspaceMessage).mockResolvedValue({
+      eventId: "evt-attach-1",
+      kind: "message.created",
+      roomId: "room-1",
+      timestamp: "2026-05-10T00:00:05.000Z",
+      payload: {
+        messageId: "msg-attach-1",
+        speakerParticipantId: "agent-codex-main",
+        body: "补充材料",
+        attachments: [
+          {
+            id: "att-1",
+            messageId: "msg-attach-1",
+            kind: "file",
+            url: "/uploads/2026/05/spec.md",
+            name: "spec.md",
+            mimeType: "text/markdown",
+            sizeBytes: 128
+          }
+        ]
+      }
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Bridge Token"), {
+      target: {
+        value: "secret-token"
+      }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "连接工作台" }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    fireEvent.change(screen.getByLabelText("消息内容"), {
+      target: {
+        value: "补充材料"
+      }
+    });
+
+    const file = new File(["# spec"], "spec.md", { type: "text/markdown" });
+    fireEvent.change(screen.getByLabelText("上传附件"), {
+      target: {
+        files: [file]
+      }
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(uploadBridgeWorkspaceFile).toHaveBeenCalledWith({
+      baseUrl: "",
+      file
+    });
+    expect(sendBridgeWorkspaceMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bridgeToken: "secret-token",
+        agentId: "agent-codex-main",
+        sessionId: "session-1",
+        roomId: "room-1",
+        body: "补充材料",
+        attachments: [
+          expect.objectContaining({
+            id: "att-1",
+            name: "spec.md"
+          })
+        ]
+      })
+    );
+    expect(screen.getByText("spec.md")).toBeInTheDocument();
   });
 
   it("submits a private memory as a shared candidate from the workspace", async () => {

@@ -5,6 +5,7 @@ import {
   fetchBridgeWorkspacePrivateMemoryOverview,
   fetchBridgeWorkspaceSnapshot,
   shareBridgeWorkspacePrivateMemory,
+  uploadBridgeWorkspaceFile,
   sendBridgeWorkspaceMessage
 } from "../features/agent-workspace/bridge-workspace-client";
 
@@ -129,6 +130,39 @@ describe("bridge workspace client", () => {
       })
     });
     expect(sent.payload.body).toBe("开始接续。");
+  });
+
+  it("uploads a workspace file through the canonical upload endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        attachment: {
+          id: "att-1",
+          messageId: "",
+          kind: "file",
+          url: "/uploads/2026/05/spec.md",
+          name: "spec.md",
+          mimeType: "text/markdown",
+          sizeBytes: 128
+        },
+        originalName: "spec.md",
+        mimeType: "text/markdown",
+        sizeBytes: 128
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const file = new File(["# spec"], "spec.md", { type: "text/markdown" });
+    const uploaded = await uploadBridgeWorkspaceFile({
+      baseUrl: "http://127.0.0.1:3000",
+      file
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3000/api/uploads", {
+      method: "POST",
+      body: expect.any(FormData)
+    });
+    expect(uploaded.attachment.name).toBe("spec.md");
   });
 
   it("fetches redacted private memory overview for the workspace room", async () => {

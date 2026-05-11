@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 
 import type { MessageEventRecord, PrivateMemoryOverview } from "../../api/client";
 import {
@@ -7,6 +7,7 @@ import {
   fetchBridgeWorkspaceSnapshot,
   shareBridgeWorkspacePrivateMemory,
   sendBridgeWorkspaceMessage,
+  uploadBridgeWorkspaceFile,
   type BridgeWorkspaceEventBatch,
   type BridgeWorkspaceRequest,
   type BridgeWorkspaceSnapshot
@@ -72,6 +73,9 @@ function renderEvent(event: MessageEventRecord) {
       <div>
         <strong>{event.kind}</strong>
         <p>{eventLabel(event)}</p>
+        {event.payload.attachments?.map((attachment) => (
+          <small key={attachment.id}>{attachment.name}</small>
+        ))}
       </div>
       <span>{event.eventId}</span>
     </article>
@@ -203,6 +207,42 @@ export function AgentWorkspacePage() {
     }
   }
 
+  async function uploadWorkspaceAttachment(event: ChangeEvent<HTMLInputElement>) {
+    if (!activeConfig) {
+      setErrorText("请先连接工作台。");
+      return;
+    }
+
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const body = messageBody.trim();
+    setErrorText("");
+
+    try {
+      const uploaded = await uploadBridgeWorkspaceFile({
+        baseUrl: activeConfig.baseUrl,
+        file
+      });
+      const sent = await sendBridgeWorkspaceMessage({
+        ...activeConfig,
+        body,
+        attachments: [uploaded.attachment]
+      });
+
+      setEvents((current) => appendEvents(current, [sent]));
+      setNextCursor(sent.eventId);
+      setMessageBody("");
+      setStatusText("附件消息已发送。");
+    } catch {
+      setErrorText("附件发送失败，请稍后重试。");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
   useEffect(() => {
     if (!activeConfig) {
       return;
@@ -320,6 +360,10 @@ export function AgentWorkspacePage() {
             <button type="button" onClick={() => void sendWorkspaceMessage()}>
               发送消息
             </button>
+            <label className="workspace-upload-field">
+              上传附件
+              <input type="file" onChange={(event) => void uploadWorkspaceAttachment(event)} />
+            </label>
           </div>
         </section>
 

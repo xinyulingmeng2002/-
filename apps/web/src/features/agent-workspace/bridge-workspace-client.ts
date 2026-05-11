@@ -1,9 +1,11 @@
 import type {
+  AttachmentRecord,
   MemoryCandidateRecord,
   MessageEventRecord,
   PrivateMemoryOverview,
   RoomSummaryRecord,
   SharedKnowledgeRecord,
+  UploadAttachmentResponse,
   WorkMemoryRecord
 } from "../../api/client";
 
@@ -64,6 +66,12 @@ export type BridgeWorkspaceEventsRequest = BridgeWorkspaceRequest & {
 
 export type BridgeWorkspaceMessageRequest = BridgeWorkspaceRequest & {
   body: string;
+  attachments?: AttachmentRecord[];
+};
+
+export type BridgeWorkspaceFileUploadRequest = {
+  baseUrl: string;
+  file: File;
 };
 
 export type BridgeWorkspacePrivateMemoryOverviewRequest = {
@@ -148,7 +156,8 @@ export async function sendBridgeWorkspaceMessage(
       agentId: input.agentId,
       sessionId: input.sessionId,
       roomId: input.roomId,
-      body: input.body
+      body: input.body,
+      attachments: input.attachments
     })
   });
 
@@ -157,6 +166,24 @@ export async function sendBridgeWorkspaceMessage(
   }
 
   return (await response.json()) as MessageEventRecord;
+}
+
+export async function uploadBridgeWorkspaceFile(
+  input: BridgeWorkspaceFileUploadRequest
+): Promise<UploadAttachmentResponse> {
+  const formData = new FormData();
+  formData.append("file", input.file);
+
+  const response = await fetch(`${input.baseUrl}/api/uploads`, {
+    method: "POST",
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw new Error(`bridge_workspace_request_failed:${response.status}`);
+  }
+
+  return (await response.json()) as UploadAttachmentResponse;
 }
 
 export async function fetchBridgeWorkspacePrivateMemoryOverview(
