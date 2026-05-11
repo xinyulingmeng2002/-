@@ -250,8 +250,8 @@ describe("AgentWorkspacePage", () => {
     expect(screen.getByText("人类已经接受该候选，Agent 工作台应看到共享层变化。")).toBeInTheDocument();
   });
 
-  it("sends a bridge workspace message from the composer", async () => {
-    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValue({
+  it("sends a bridge workspace message from the composer and refreshes the workspace snapshot", async () => {
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
       agent: {
         id: "agent-codex-main",
         displayName: "Codex",
@@ -272,6 +272,36 @@ describe("AgentWorkspacePage", () => {
       recentEvents: [],
       nextCursor: null
     });
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
+      agent: {
+        id: "agent-codex-main",
+        displayName: "Codex",
+        capabilities: ["chat", "code"]
+      },
+      session: {
+        id: "session-1",
+        activeRoomIds: ["room-1"],
+        lastSeenAt: "2026-05-10T00:00:05.000Z",
+        expiresAt: "2026-05-10T00:02:05.000Z"
+      },
+      room: { id: "room-1" },
+      participants: [],
+      latestSummary: null,
+      workMemory: {
+        roomId: "room-1",
+        recentMessages: [],
+        activeParticipantIds: ["agent-codex-main"],
+        todoItems: ["继续接续房间上下文"],
+        blockerItems: [],
+        decisionItems: [],
+        lastSummaryDraftId: null,
+        updatedAt: "2026-05-10T00:00:05.000Z"
+      },
+      sharedKnowledge: [],
+      memoryCandidates: [],
+      recentEvents: [],
+      nextCursor: "evt-3"
+    });
     vi.mocked(sendBridgeWorkspaceMessage).mockResolvedValue({
       eventId: "evt-3",
       kind: "message.created",
@@ -282,6 +312,10 @@ describe("AgentWorkspacePage", () => {
         speakerParticipantId: "agent-codex-main",
         body: "开始接续。"
       }
+    });
+    vi.mocked(fetchBridgeWorkspaceEvents).mockResolvedValueOnce({
+      items: [],
+      nextCursor: "evt-3"
     });
 
     render(<App />);
@@ -318,10 +352,18 @@ describe("AgentWorkspacePage", () => {
       })
     );
     expect(screen.getByText("开始接续。")).toBeInTheDocument();
+    expect(fetchBridgeWorkspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(fetchBridgeWorkspaceEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        afterEventId: undefined,
+        limit: 20
+      })
+    );
+    expect(await screen.findByText("继续接续房间上下文")).toBeInTheDocument();
   });
 
   it("uploads a file and sends it as a bridge workspace attachment", async () => {
-    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValue({
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
       agent: {
         id: "agent-codex-main",
         displayName: "Codex",
@@ -341,6 +383,36 @@ describe("AgentWorkspacePage", () => {
       memoryCandidates: [],
       recentEvents: [],
       nextCursor: null
+    });
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
+      agent: {
+        id: "agent-codex-main",
+        displayName: "Codex",
+        capabilities: ["chat", "code"]
+      },
+      session: {
+        id: "session-1",
+        activeRoomIds: ["room-1"],
+        lastSeenAt: "2026-05-10T00:00:05.000Z",
+        expiresAt: "2026-05-10T00:02:05.000Z"
+      },
+      room: { id: "room-1" },
+      participants: [],
+      latestSummary: null,
+      workMemory: {
+        roomId: "room-1",
+        recentMessages: [],
+        activeParticipantIds: ["agent-codex-main"],
+        todoItems: ["处理附件材料"],
+        blockerItems: [],
+        decisionItems: [],
+        lastSummaryDraftId: null,
+        updatedAt: "2026-05-10T00:00:05.000Z"
+      },
+      sharedKnowledge: [],
+      memoryCandidates: [],
+      recentEvents: [],
+      nextCursor: "evt-attach-1"
     });
     vi.mocked(uploadBridgeWorkspaceFile).mockResolvedValue({
       attachment: {
@@ -377,6 +449,10 @@ describe("AgentWorkspacePage", () => {
           }
         ]
       }
+    });
+    vi.mocked(fetchBridgeWorkspaceEvents).mockResolvedValueOnce({
+      items: [],
+      nextCursor: "evt-attach-1"
     });
 
     render(<App />);
@@ -429,6 +505,8 @@ describe("AgentWorkspacePage", () => {
       })
     );
     expect(screen.getByText("spec.md")).toBeInTheDocument();
+    expect(fetchBridgeWorkspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText("处理附件材料")).toBeInTheDocument();
   });
 
   it("submits a private memory as a shared candidate from the workspace", async () => {

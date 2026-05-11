@@ -201,6 +201,7 @@ export function AgentWorkspacePage() {
       setEvents((current) => appendEvents(current, [sent]));
       setNextCursor(sent.eventId);
       setMessageBody("");
+      await refreshWorkspaceAfterWrite(activeConfig);
       setStatusText("消息已发送。");
     } catch {
       setErrorText("消息发送失败，请稍后重试。");
@@ -235,6 +236,7 @@ export function AgentWorkspacePage() {
       setEvents((current) => appendEvents(current, [sent]));
       setNextCursor(sent.eventId);
       setMessageBody("");
+      await refreshWorkspaceAfterWrite(activeConfig);
       setStatusText("附件消息已发送。");
     } catch {
       setErrorText("附件发送失败，请稍后重试。");
