@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 
-import type { MessageEventRecord } from "../../api/client";
+import type { MessageEventRecord, PrivateMemoryOverview } from "../../api/client";
 import {
   fetchBridgeWorkspaceEvents,
+  fetchBridgeWorkspacePrivateMemoryOverview,
   fetchBridgeWorkspaceSnapshot,
+  shareBridgeWorkspacePrivateMemory,
   sendBridgeWorkspaceMessage,
   type BridgeWorkspaceEventBatch,
   type BridgeWorkspaceRequest,
@@ -81,6 +83,7 @@ export function AgentWorkspacePage() {
   const [events, setEvents] = useState<MessageEventRecord[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [messageBody, setMessageBody] = useState("");
+  const [privateMemoryOverview, setPrivateMemoryOverview] = useState<PrivateMemoryOverview[]>([]);
   const [statusText, setStatusText] = useState("等待 bridge token 与 session 信息。");
   const [errorText, setErrorText] = useState("");
 
@@ -103,7 +106,12 @@ export function AgentWorkspacePage() {
 
     try {
       const loadedSnapshot = await fetchBridgeWorkspaceSnapshot(config);
+      const loadedPrivateMemoryOverview = await fetchBridgeWorkspacePrivateMemoryOverview({
+        baseUrl: config.baseUrl,
+        roomId: config.roomId
+      });
       setSnapshot(loadedSnapshot);
+      setPrivateMemoryOverview(loadedPrivateMemoryOverview);
       setEvents(loadedSnapshot.recentEvents);
       setNextCursor(loadedSnapshot.nextCursor);
       setActiveConfig(config);
@@ -112,6 +120,35 @@ export function AgentWorkspacePage() {
       setActiveConfig(null);
       setStatusText("连接失败。");
       setErrorText("无法加载 Agent 工作快照，请检查 bridge token、session 与 roomId。");
+    }
+  }
+
+  async function refreshPrivateMemoryOverview(config: WorkspaceConfig) {
+    const loadedPrivateMemoryOverview = await fetchBridgeWorkspacePrivateMemoryOverview({
+      baseUrl: config.baseUrl,
+      roomId: config.roomId
+    });
+    setPrivateMemoryOverview(loadedPrivateMemoryOverview);
+  }
+
+  async function sharePrivateMemory(overview: PrivateMemoryOverview) {
+    if (!activeConfig || !overview.suggestedShareCandidate) {
+      return;
+    }
+
+    setErrorText("");
+
+    try {
+      await shareBridgeWorkspacePrivateMemory({
+        baseUrl: activeConfig.baseUrl,
+        memoryId: overview.suggestedShareCandidate.memoryId,
+        agentId: overview.agentId,
+        candidateType: overview.suggestedShareCandidate.candidateType
+      });
+      await refreshPrivateMemoryOverview(activeConfig);
+      setStatusText("私有记忆已提交为共享候选，等待人工审核。");
+    } catch {
+      setErrorText("提交共享候选失败，请稍后重试。");
     }
   }
 
@@ -302,6 +339,33 @@ export function AgentWorkspacePage() {
                     <div key={item.knowledgeId} className="workspace-knowledge-row">
                       <strong>{item.title}</strong>
                       <p>{item.body}</p>
+                    </div>
+                  ))}
+                </article>
+
+                <article className="workspace-mini-card">
+                  <h3>私有记忆状态</h3>
+                  {privateMemoryOverview.length === 0 ? <p>当前房间暂无私有记忆状态。</p> : null}
+                  {privateMemoryOverview.map((overview) => (
+                    <div key={`${overview.agentId}:${overview.roomId}`} className="workspace-knowledge-row">
+                      <strong>{overview.agentId}</strong>
+                      <p>
+                        {overview.totalMemories} 条私有记忆 / {overview.shareableMemories} 条可提交候选
+                      </p>
+                      {overview.pendingShareCandidate ? (
+                        <small>已提交候选 {overview.pendingShareCandidate.candidateId}</small>
+                      ) : null}
+                      {overview.latestShareOutcome ? (
+                        <small>
+                          最近审核 {overview.latestShareOutcome.candidateId}:{" "}
+                          {overview.latestShareOutcome.status}
+                        </small>
+                      ) : null}
+                      {overview.suggestedShareCandidate ? (
+                        <button type="button" onClick={() => void sharePrivateMemory(overview)}>
+                          提交为共享候选
+                        </button>
+                      ) : null}
                     </div>
                   ))}
                 </article>

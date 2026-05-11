@@ -56,7 +56,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 10. 拉取房间新事件时调用 `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
 11. 需要一次性恢复房间工作面时调用 `getWorkspaceSnapshot({ sessionId, agentId, roomId, eventLimit? })`
 12. 长时间运行的 adapter 可以用 `events watch` 在外层持续轮询并自行保存 cursor
-13. 如果需要浏览器里的独立 Agent 工作台，可打开 `?view=agent-workspace&roomId=<roomId>`，再粘贴 bridge token 手动连接、查看快照、监听事件并通过 bridge ingress 发送房间消息
+13. 如果需要浏览器里的独立 Agent 工作台，可打开 `?view=agent-workspace&roomId=<roomId>`，再粘贴 bridge token 手动连接、查看快照、监听事件、通过 bridge ingress 发送房间消息，并把去敏私有记忆概览中的可共享项提交为共享候选
 14. 退出时调用 `disconnect({ sessionId, agentId })`
 
 通用 Agent 工作入口：
@@ -64,6 +64,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 - `GET /api/bridge/egress/workspace?agentId=<id>&sessionId=<id>&roomId=<roomId>&eventLimit=<n>`：返回当前 Agent、session、房间、参与者、最新摘要、工作记忆、共享知识、最近事件与 `nextCursor`
 - `GET /api/bridge/egress/events?agentId=<id>&roomId=<roomId>&afterEventId=<eventId>&limit=<n>`：返回房间事件增量，供 adapter 轮询
 - `@ma/bridge-shared` 已提供 `getWorkspaceSnapshot()` 和 `pullEvents()`，Codex / OpenClaw 只是这条统一边界上的首批示范适配器
+- 浏览器 Agent 工作台额外复用现有私有记忆受控接口：只读取 `GET /api/private-memories/summary` 的去敏概览，并通过 `POST /api/private-memories/:id/share-candidate` 提交共享候选；它不会展示 L3 私有原文，也不会绕过人工候选审核
 
 适配器壳说明位于：
 

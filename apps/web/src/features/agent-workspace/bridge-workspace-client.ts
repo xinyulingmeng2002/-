@@ -1,4 +1,11 @@
-import type { MessageEventRecord, RoomSummaryRecord, SharedKnowledgeRecord, WorkMemoryRecord } from "../../api/client";
+import type {
+  MemoryCandidateRecord,
+  MessageEventRecord,
+  PrivateMemoryOverview,
+  RoomSummaryRecord,
+  SharedKnowledgeRecord,
+  WorkMemoryRecord
+} from "../../api/client";
 
 export type BridgeWorkspaceParticipant = {
   id: string;
@@ -56,6 +63,18 @@ export type BridgeWorkspaceEventsRequest = BridgeWorkspaceRequest & {
 
 export type BridgeWorkspaceMessageRequest = BridgeWorkspaceRequest & {
   body: string;
+};
+
+export type BridgeWorkspacePrivateMemoryOverviewRequest = {
+  baseUrl: string;
+  roomId: string;
+};
+
+export type BridgeWorkspacePrivateMemoryShareRequest = {
+  baseUrl: string;
+  memoryId: string;
+  agentId: string;
+  candidateType: "summary" | "todo" | "blocker" | "decision";
 };
 
 async function requestJson<T>(path: string, token: string): Promise<T> {
@@ -137,4 +156,47 @@ export async function sendBridgeWorkspaceMessage(
   }
 
   return (await response.json()) as MessageEventRecord;
+}
+
+export async function fetchBridgeWorkspacePrivateMemoryOverview(
+  input: BridgeWorkspacePrivateMemoryOverviewRequest
+): Promise<PrivateMemoryOverview[]> {
+  const params = new URLSearchParams({
+    roomId: input.roomId
+  });
+
+  const response = await fetch(`${input.baseUrl}/api/private-memories/summary?${params.toString()}`, {
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`bridge_workspace_request_failed:${response.status}`);
+  }
+
+  const body = (await response.json()) as { items: PrivateMemoryOverview[] };
+  return body.items;
+}
+
+export async function shareBridgeWorkspacePrivateMemory(
+  input: BridgeWorkspacePrivateMemoryShareRequest
+): Promise<MemoryCandidateRecord> {
+  const response = await fetch(`${input.baseUrl}/api/private-memories/${input.memoryId}/share-candidate`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      agentId: input.agentId,
+      candidateType: input.candidateType
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`bridge_workspace_request_failed:${response.status}`);
+  }
+
+  return (await response.json()) as MemoryCandidateRecord;
 }

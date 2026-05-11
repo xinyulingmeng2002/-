@@ -131,7 +131,8 @@ data/bridges/openclaw/session.json
 7. `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
 8. `getWorkspaceSnapshot({ sessionId, agentId, roomId, eventLimit? })` 一次性获取房间工作面
 9. 长运行场景用 `events watch` 持续监听，并由外部保存 `nextCursor`
-10. 退出时 `disconnect({ sessionId, agentId })`
+10. 浏览器 Agent 工作台可以复用现有私有记忆受控接口，查看去敏概览并把可共享项提交为共享候选
+11. 退出时 `disconnect({ sessionId, agentId })`
 
 `sendMessage()` 当前会在服务端补做房间绑定，但适配器仍应显式先调用 `joinRoom()`，这样 session 与房间关系更清晰，也更容易排查权限问题。
 
@@ -155,6 +156,8 @@ GET /api/bridge/egress/workspace?agentId=<id>&sessionId=<id>&roomId=<roomId>&eve
 ```
 
 返回内容包括 Agent/session、房间、参与者、最新摘要、工作记忆、已共享知识、最近事件和 `nextCursor`。这不是 OpenClaw 私有接口，任意符合 bridge 边界的 Agent adapter 都应走同一入口。
+
+工作台里的私有记忆区只显示 `GET /api/private-memories/summary` 返回的去敏状态；提交共享内容时仍走 `POST /api/private-memories/:id/share-candidate`，候选需要人工审核后才会进入共享层。
 
 ## Identity Mapping
 

@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   fetchBridgeWorkspaceEvents,
+  fetchBridgeWorkspacePrivateMemoryOverview,
   fetchBridgeWorkspaceSnapshot,
+  shareBridgeWorkspacePrivateMemory,
   sendBridgeWorkspaceMessage
 } from "../features/agent-workspace/bridge-workspace-client";
 
@@ -127,5 +129,92 @@ describe("bridge workspace client", () => {
       })
     });
     expect(sent.payload.body).toBe("开始接续。");
+  });
+
+  it("fetches redacted private memory overview for the workspace room", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        items: [
+          {
+            agentId: "agent-codex-main",
+            roomId: "room-1",
+            totalMemories: 1,
+            shareableMemories: 1,
+            latestUpdatedAt: "2026-05-10T00:00:00.000Z",
+            latestSourceEventIds: ["evt-private-1"],
+            suggestedShareCandidate: {
+              memoryId: "mem-private-1",
+              candidateType: "decision"
+            },
+            pendingShareCandidate: null,
+            latestShareOutcome: null
+          }
+        ]
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const overview = await fetchBridgeWorkspacePrivateMemoryOverview({
+      baseUrl: "http://127.0.0.1:3000",
+      roomId: "room-1"
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/private-memories/summary?roomId=room-1",
+      {
+        headers: {
+          Accept: "application/json"
+        }
+      }
+    );
+    expect(overview[0].agentId).toBe("agent-codex-main");
+  });
+
+  it("submits a private memory as a shared candidate from the workspace", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        candidateId: "cand-private-1",
+        roomId: "room-1",
+        scope: "shared",
+        candidateType: "decision",
+        title: "Private note promoted",
+        body: "Promoted through candidate review.",
+        status: "proposed",
+        proposedBy: "agent:agent-codex-main",
+        sourceEventIds: ["evt-private-1"],
+        sourceMemoryIds: ["mem-private-1"],
+        targetAgentId: "agent-codex-main",
+        createdAt: "2026-05-10T00:00:05.000Z",
+        reviewedAt: null,
+        reviewedBy: null,
+        acceptedInto: []
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const candidate = await shareBridgeWorkspacePrivateMemory({
+      baseUrl: "http://127.0.0.1:3000",
+      memoryId: "mem-private-1",
+      agentId: "agent-codex-main",
+      candidateType: "decision"
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/api/private-memories/mem-private-1/share-candidate",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          agentId: "agent-codex-main",
+          candidateType: "decision"
+        })
+      }
+    );
+    expect(candidate.candidateId).toBe("cand-private-1");
   });
 });

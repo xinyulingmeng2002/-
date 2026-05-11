@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchBridgeWorkspaceEvents,
   fetchBridgeWorkspaceSnapshot,
+  fetchBridgeWorkspacePrivateMemoryOverview,
+  shareBridgeWorkspacePrivateMemory,
   sendBridgeWorkspaceMessage
 } from "../features/agent-workspace/bridge-workspace-client";
 
@@ -11,6 +13,8 @@ vi.mock("../features/agent-workspace/bridge-workspace-client", () => {
   return {
     fetchBridgeWorkspaceSnapshot: vi.fn(),
     fetchBridgeWorkspaceEvents: vi.fn(),
+    fetchBridgeWorkspacePrivateMemoryOverview: vi.fn(),
+    shareBridgeWorkspacePrivateMemory: vi.fn(),
     sendBridgeWorkspaceMessage: vi.fn()
   };
 });
@@ -24,6 +28,7 @@ describe("AgentWorkspacePage", () => {
       "",
       "/?view=agent-workspace&roomId=room-1&agentId=agent-codex-main&sessionId=session-1"
     );
+    vi.mocked(fetchBridgeWorkspacePrivateMemoryOverview).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -236,5 +241,120 @@ describe("AgentWorkspacePage", () => {
       })
     );
     expect(screen.getByText("开始接续。")).toBeInTheDocument();
+  });
+
+  it("submits a private memory as a shared candidate from the workspace", async () => {
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValue({
+      agent: {
+        id: "agent-codex-main",
+        displayName: "Codex",
+        capabilities: ["chat", "code"]
+      },
+      session: {
+        id: "session-1",
+        activeRoomIds: ["room-1"],
+        lastSeenAt: "2026-05-10T00:00:00.000Z",
+        expiresAt: "2026-05-10T00:02:00.000Z"
+      },
+      room: { id: "room-1" },
+      participants: [],
+      latestSummary: null,
+      workMemory: null,
+      sharedKnowledge: [],
+      recentEvents: [],
+      nextCursor: null
+    });
+    vi.mocked(fetchBridgeWorkspacePrivateMemoryOverview)
+      .mockResolvedValueOnce([
+        {
+          agentId: "agent-codex-main",
+          roomId: "room-1",
+          totalMemories: 1,
+          shareableMemories: 1,
+          latestUpdatedAt: "2026-05-10T00:00:00.000Z",
+          latestSourceEventIds: ["evt-private-1"],
+          suggestedShareCandidate: {
+            memoryId: "mem-private-1",
+            candidateType: "decision"
+          },
+          pendingShareCandidate: null,
+          latestShareOutcome: null
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          agentId: "agent-codex-main",
+          roomId: "room-1",
+          totalMemories: 1,
+          shareableMemories: 0,
+          latestUpdatedAt: "2026-05-10T00:00:00.000Z",
+          latestSourceEventIds: ["evt-private-1"],
+          suggestedShareCandidate: null,
+          pendingShareCandidate: {
+            candidateId: "cand-private-1",
+            memoryId: "mem-private-1",
+            candidateType: "decision",
+            submittedAt: "2026-05-10T00:00:05.000Z"
+          },
+          latestShareOutcome: null
+        }
+      ]);
+    vi.mocked(shareBridgeWorkspacePrivateMemory).mockResolvedValue({
+      candidateId: "cand-private-1",
+      roomId: "room-1",
+      scope: "shared",
+      candidateType: "decision",
+      title: "Private note promoted",
+      body: "Promoted through candidate review.",
+      status: "proposed",
+      proposedBy: "agent:agent-codex-main",
+      sourceEventIds: ["evt-private-1"],
+      sourceMemoryIds: ["mem-private-1"],
+      targetAgentId: "agent-codex-main",
+      createdAt: "2026-05-10T00:00:05.000Z",
+      reviewedAt: null,
+      reviewedBy: null,
+      acceptedInto: []
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Bridge Token"), {
+      target: {
+        value: "secret-token"
+      }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "连接工作台" }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchBridgeWorkspacePrivateMemoryOverview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: "",
+        roomId: "room-1"
+      })
+    );
+    expect(screen.getByText("私有记忆状态")).toBeInTheDocument();
+    expect(screen.getAllByText("agent-codex-main")).toHaveLength(2);
+    expect(screen.getByText("1 条私有记忆 / 1 条可提交候选")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "提交为共享候选" }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(shareBridgeWorkspacePrivateMemory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: "",
+        memoryId: "mem-private-1",
+        agentId: "agent-codex-main",
+        candidateType: "decision"
+      })
+    );
+    expect(screen.getByText("1 条私有记忆 / 0 条可提交候选")).toBeInTheDocument();
+    expect(screen.getByText("已提交候选 cand-private-1")).toBeInTheDocument();
   });
 });
