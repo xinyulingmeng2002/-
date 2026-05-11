@@ -33,12 +33,18 @@ type BridgeWorkspaceSnapshotInput = BridgeSessionInput & {
   eventLimit?: number;
 };
 
+type BridgePullEventsInput = BridgeJoinRoomInput & {
+  afterEventId?: string;
+  limit?: number;
+};
+
 export type GenericBridgeClient = {
   connect<T>(input: BridgeConnectInput): Promise<T>;
   heartbeat<T>(input: BridgeSessionInput): Promise<T>;
   disconnect<T>(input: BridgeSessionInput): Promise<T>;
   joinRoom<T>(input: BridgeJoinRoomInput): Promise<T>;
   sendMessage<T>(input: BridgeSendMessageInput): Promise<T>;
+  pullEvents<T>(input: BridgePullEventsInput): Promise<T>;
   getWorkspaceSnapshot<T>(input: BridgeWorkspaceSnapshotInput): Promise<T>;
 };
 
@@ -67,6 +73,18 @@ type SendMessageOptions = SessionFileOptions & {
 
 type WorkspaceSnapshotOptions = SessionFileOptions & {
   eventLimit?: number;
+};
+
+type PullEventsOptions = SessionFileOptions & {
+  afterEventId?: string;
+  limit?: number;
+};
+
+type WatchEventsOptions = PullEventsOptions & {
+  pollMs: number;
+  onBatch?: (batch: unknown) => void | Promise<void>;
+  sleep?: (ms: number) => Promise<void>;
+  signal?: AbortSignal;
 };
 
 export type RunningGenericBridgeSession = {
@@ -189,6 +207,76 @@ export async function getGenericBridgeWorkspaceSnapshot<T = unknown>(
     roomId: session.roomId,
     eventLimit: options.eventLimit
   });
+}
+
+export async function pullGenericBridgeEvents<T = unknown>(
+  options: PullEventsOptions
+): Promise<T> {
+  const session = readGenericBridgeSessionFile(options.sessionFilePath);
+  const client = resolveClient({
+    client: options.client,
+    baseUrl: session.baseUrl,
+    token: session.token
+  });
+
+  return client.pullEvents<T>({
+    sessionId: session.sessionId,
+    agentId: session.agentId,
+    roomId: session.roomId,
+    afterEventId: options.afterEventId,
+    limit: options.limit
+  });
+}
+
+function resolveNextCursor(batch: unknown, fallback: string | undefined): string | undefined {
+  const nextCursor = (batch as { nextCursor?: unknown })?.nextCursor;
+  return typeof nextCursor === "string" && nextCursor.length > 0 ? nextCursor : fallback;
+}
+
+function hasBatchItems(batch: unknown): boolean {
+  const items = (batch as { items?: unknown })?.items;
+  return Array.isArray(items) && items.length > 0;
+}
+
+function persistEventCursor(sessionFilePath: string, lastEventId: string | undefined): void {
+  if (!lastEventId) {
+    return;
+  }
+
+  const session = readGenericBridgeSessionFile(sessionFilePath);
+  writeGenericBridgeSessionFile(sessionFilePath, {
+    ...session,
+    lastEventId
+  });
+}
+
+async function defaultSleep(ms: number): Promise<void> {
+  await new Promise((resolvePromise) => {
+    setTimeout(resolvePromise, ms);
+  });
+}
+
+export async function watchGenericBridgeEvents(options: WatchEventsOptions): Promise<void> {
+  const session = readGenericBridgeSessionFile(options.sessionFilePath);
+  let afterEventId = options.afterEventId ?? session.lastEventId;
+  const sleep = options.sleep ?? defaultSleep;
+
+  while (!options.signal?.aborted) {
+    const batch = await pullGenericBridgeEvents({
+      client: options.client,
+      sessionFilePath: options.sessionFilePath,
+      afterEventId,
+      limit: options.limit
+    });
+
+    if (hasBatchItems(batch)) {
+      await options.onBatch?.(batch);
+    }
+
+    afterEventId = resolveNextCursor(batch, afterEventId);
+    persistEventCursor(options.sessionFilePath, afterEventId);
+    await sleep(options.pollMs);
+  }
 }
 
 export async function stopGenericBridgeSession<T = unknown>(

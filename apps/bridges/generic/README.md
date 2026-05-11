@@ -3,7 +3,7 @@
 `apps/bridges/generic` 是通用 Agent 接入示范。它不绑定 Codex 或 OpenClaw，只证明平台的接入边界是：
 
 ```text
-Agent 邀请钥匙 JSON -> adapter 声明自己的 agentId/displayName/capabilities -> connect -> joinRoom -> heartbeat -> message/workspace
+Agent 邀请钥匙 JSON -> adapter 声明自己的 agentId/displayName/capabilities -> connect -> joinRoom -> heartbeat -> events/workspace/message
 ```
 
 ## Start From Invite
@@ -36,6 +36,20 @@ npm --workspace @ma/bridge-generic run dev -- message send --body "Generic Agent
 ```bash
 npm --workspace @ma/bridge-generic run dev -- workspace snapshot --event-limit 20
 ```
+
+拉取房间新事件：
+
+```bash
+npm --workspace @ma/bridge-generic run dev -- events pull --after-event-id evt_123 --limit 20
+```
+
+持续监听房间事件：
+
+```bash
+npm --workspace @ma/bridge-generic run dev -- events watch --poll-ms 2000 --limit 20
+```
+
+`events watch` 会把服务端返回的 `nextCursor` 持久化为 session 文件里的 `lastEventId`；下一次未显式传 `--after-event-id` 时，会默认从该位置继续监听。
 
 停止 session：
 

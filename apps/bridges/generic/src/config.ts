@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 type EnvLike = Record<string, string | undefined>;
 
 const DEFAULT_HEARTBEAT_MS = 45_000;
+const DEFAULT_POLL_MS = 2_000;
 
 type StartOptions = {
   baseUrl: string;
@@ -39,6 +40,23 @@ export type GenericBridgeCliCommand =
       options: {
         sessionFilePath: string;
         eventLimit?: number;
+      };
+    }
+  | {
+      kind: "events.pull";
+      options: {
+        sessionFilePath: string;
+        afterEventId?: string;
+        limit?: number;
+      };
+    }
+  | {
+      kind: "events.watch";
+      options: {
+        sessionFilePath: string;
+        afterEventId?: string;
+        limit?: number;
+        pollMs: number;
       };
     };
 
@@ -188,6 +206,34 @@ export function parseGenericBridgeCliArgs(
     };
   }
 
+  if (commandKey === "events.pull") {
+    const limitValue = flags.limit ? Number.parseInt(flags.limit, 10) : undefined;
+
+    return {
+      kind: "events.pull",
+      options: {
+        sessionFilePath,
+        afterEventId: flags["after-event-id"],
+        limit: Number.isFinite(limitValue) && limitValue && limitValue > 0 ? limitValue : undefined
+      }
+    };
+  }
+
+  if (commandKey === "events.watch") {
+    const limitValue = flags.limit ? Number.parseInt(flags.limit, 10) : undefined;
+    const pollMsValue = flags["poll-ms"] ? Number.parseInt(flags["poll-ms"], 10) : DEFAULT_POLL_MS;
+
+    return {
+      kind: "events.watch",
+      options: {
+        sessionFilePath,
+        afterEventId: flags["after-event-id"],
+        limit: Number.isFinite(limitValue) && limitValue && limitValue > 0 ? limitValue : undefined,
+        pollMs: Number.isFinite(pollMsValue) && pollMsValue > 0 ? pollMsValue : DEFAULT_POLL_MS
+      }
+    };
+  }
+
   throw new Error(`generic_bridge_unknown_command:${commandKey || "empty"}`);
 }
 
@@ -196,6 +242,8 @@ export function formatGenericBridgeUsage(): string {
     "Usage:",
     "  npm --workspace @ma/bridge-generic run dev -- session start --invite-file <invite.json> --agent-id <id>",
     "  npm --workspace @ma/bridge-generic run dev -- message send --body <text>",
+    "  npm --workspace @ma/bridge-generic run dev -- events pull --after-event-id <event-id>",
+    "  npm --workspace @ma/bridge-generic run dev -- events watch --poll-ms <ms>",
     "  npm --workspace @ma/bridge-generic run dev -- workspace snapshot --event-limit <n>",
     "  npm --workspace @ma/bridge-generic run dev -- session stop",
     "",

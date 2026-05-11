@@ -4,9 +4,11 @@ import { pathToFileURL } from "node:url";
 import { formatGenericBridgeUsage, parseGenericBridgeCliArgs } from "./config";
 import {
   getGenericBridgeWorkspaceSnapshot,
+  pullGenericBridgeEvents,
   runGenericBridgeSession,
   sendGenericBridgeMessage,
-  stopGenericBridgeSession
+  stopGenericBridgeSession,
+  watchGenericBridgeEvents
 } from "./runtime";
 
 async function readStdinBody(): Promise<string> {
@@ -84,6 +86,36 @@ export async function runGenericBridgeCli(argv = process.argv.slice(2)): Promise
   if (parsed.kind === "workspace.snapshot") {
     const snapshot = await getGenericBridgeWorkspaceSnapshot(parsed.options);
     console.log(JSON.stringify(snapshot, null, 2));
+    return;
+  }
+
+  if (parsed.kind === "events.pull") {
+    const events = await pullGenericBridgeEvents(parsed.options);
+    console.log(JSON.stringify(events, null, 2));
+    return;
+  }
+
+  if (parsed.kind === "events.watch") {
+    const abortController = new AbortController();
+    const onSignal = () => {
+      abortController.abort();
+    };
+
+    process.on("SIGINT", onSignal);
+    process.on("SIGTERM", onSignal);
+
+    try {
+      await watchGenericBridgeEvents({
+        ...parsed.options,
+        signal: abortController.signal,
+        onBatch(batch) {
+          console.log(JSON.stringify(batch));
+        }
+      });
+    } finally {
+      process.off("SIGINT", onSignal);
+      process.off("SIGTERM", onSignal);
+    }
     return;
   }
 

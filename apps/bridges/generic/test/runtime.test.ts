@@ -6,9 +6,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   getGenericBridgeWorkspaceSnapshot,
+  pullGenericBridgeEvents,
   runGenericBridgeSession,
   sendGenericBridgeMessage,
-  stopGenericBridgeSession
+  stopGenericBridgeSession,
+  watchGenericBridgeEvents
 } from "../src/runtime";
 
 function createTempDir(): string {
@@ -29,6 +31,7 @@ describe("generic bridge runtime", () => {
       heartbeat: vi.fn(),
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
       sendMessage: vi.fn(),
+      pullEvents: vi.fn(),
       getWorkspaceSnapshot: vi.fn()
     };
 
@@ -150,6 +153,134 @@ describe("generic bridge runtime", () => {
         roomId: "room-1",
         eventLimit: 10
       });
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("pulls room events through the persisted generic session", async () => {
+    const tempDir = createTempDir();
+    const sessionFilePath = join(tempDir, "generic-session.json");
+    const client = {
+      pullEvents: vi.fn().mockResolvedValue({
+        items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+        nextCursor: "evt-2"
+      })
+    };
+
+    try {
+      writeFileSync(
+        sessionFilePath,
+        JSON.stringify({
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          sessionId: "session-1",
+          agentId: "agent-generic-main",
+          displayName: "Generic Agent",
+          roomId: "room-1",
+          capabilities: ["chat"],
+          heartbeatMs: 10000
+        }),
+        "utf8"
+      );
+
+      const events = await pullGenericBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        afterEventId: "evt-1",
+        limit: 20
+      });
+
+      expect(client.pullEvents).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-generic-main",
+        roomId: "room-1",
+        afterEventId: "evt-1",
+        limit: 20
+      });
+      expect(events).toEqual({
+        items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+        nextCursor: "evt-2"
+      });
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("watches events and persists the generic cursor for restart", async () => {
+    const tempDir = createTempDir();
+    const sessionFilePath = join(tempDir, "generic-session.json");
+    const abortController = new AbortController();
+    const batches: unknown[] = [];
+    const client = {
+      pullEvents: vi
+        .fn()
+        .mockResolvedValueOnce({
+          items: [{ eventId: "evt-9", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-9"
+        })
+        .mockResolvedValueOnce({
+          items: [],
+          nextCursor: "evt-10"
+        })
+    };
+    const sleep = vi.fn().mockImplementation(async () => {
+      if (client.pullEvents.mock.calls.length >= 2) {
+        abortController.abort();
+      }
+    });
+
+    try {
+      writeFileSync(
+        sessionFilePath,
+        JSON.stringify({
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          sessionId: "session-1",
+          agentId: "agent-generic-main",
+          displayName: "Generic Agent",
+          roomId: "room-1",
+          capabilities: ["chat"],
+          heartbeatMs: 10000,
+          lastEventId: "evt-8"
+        }),
+        "utf8"
+      );
+
+      await watchGenericBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        limit: 20,
+        pollMs: 10,
+        signal: abortController.signal,
+        sleep,
+        onBatch(batch) {
+          batches.push(batch);
+        }
+      });
+
+      expect(client.pullEvents).toHaveBeenNthCalledWith(1, {
+        sessionId: "session-1",
+        agentId: "agent-generic-main",
+        roomId: "room-1",
+        afterEventId: "evt-8",
+        limit: 20
+      });
+      expect(client.pullEvents).toHaveBeenNthCalledWith(2, {
+        sessionId: "session-1",
+        agentId: "agent-generic-main",
+        roomId: "room-1",
+        afterEventId: "evt-9",
+        limit: 20
+      });
+      expect(batches).toEqual([
+        {
+          items: [{ eventId: "evt-9", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-9"
+        }
+      ]);
+      const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
+      expect(stored.lastEventId).toBe("evt-10");
     } finally {
       cleanupTempDir(tempDir);
     }

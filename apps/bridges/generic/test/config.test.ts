@@ -120,4 +120,39 @@ describe("generic bridge config", () => {
       }
     });
   });
+
+  it("parses event pull arguments", () => {
+    expect(
+      parseGenericBridgeCliArgs(
+        ["events", "pull", "--after-event-id", "evt-1", "--limit", "20"],
+        { MA_BRIDGE_SESSION_FILE: "/tmp/generic-session.json" },
+        "/workspace"
+      )
+    ).toEqual({
+      kind: "events.pull",
+      options: {
+        sessionFilePath: "/tmp/generic-session.json",
+        afterEventId: "evt-1",
+        limit: 20
+      }
+    });
+  });
+
+  it("parses event watch arguments", () => {
+    expect(
+      parseGenericBridgeCliArgs(
+        ["events", "watch", "--after-event-id", "evt-1", "--limit", "20", "--poll-ms", "500"],
+        { MA_BRIDGE_SESSION_FILE: "/tmp/generic-session.json" },
+        "/workspace"
+      )
+    ).toEqual({
+      kind: "events.watch",
+      options: {
+        sessionFilePath: "/tmp/generic-session.json",
+        afterEventId: "evt-1",
+        limit: 20,
+        pollMs: 500
+      }
+    });
+  });
 });

@@ -10,6 +10,7 @@ export type GenericBridgeSessionRecord = {
   roomId: string;
   capabilities: string[];
   heartbeatMs: number;
+  lastEventId?: string;
 };
 
 export function readGenericBridgeSessionFile(filePath: string): GenericBridgeSessionRecord {
