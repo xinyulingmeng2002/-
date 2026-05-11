@@ -92,6 +92,25 @@ describe("openclaw bridge config", () => {
     });
   });
 
+  it("parses workspace snapshot arguments", () => {
+    const parsed = parseOpenClawBridgeCliArgs(
+      ["workspace", "snapshot", "--room-id", "room-2", "--event-limit", "15"],
+      {
+        MA_BRIDGE_SESSION_FILE: "/tmp/openclaw-session.json"
+      },
+      "/workspace"
+    );
+
+    expect(parsed).toEqual({
+      kind: "workspace.snapshot",
+      options: {
+        sessionFilePath: "/tmp/openclaw-session.json",
+        roomId: "room-2",
+        eventLimit: 15
+      }
+    });
+  });
+
   it("parses attachment send arguments", () => {
     const parsed = parseOpenClawBridgeCliArgs(
       ["attachment", "send", "--file", "/tmp/diagram.png", "--caption", "看这个", "--mime-type", "image/png"],

@@ -47,6 +47,11 @@ type BridgePullEventsInput = BridgeJoinRoomInput & {
   limit?: number;
 };
 
+type BridgeWorkspaceSnapshotInput = BridgeSessionInput & {
+  roomId: string;
+  eventLimit?: number;
+};
+
 type BridgeUploadFileInput = {
   fileName: string;
   mimeType?: string;
@@ -60,6 +65,7 @@ export type OpenClawBridgeClient = {
   joinRoom<T>(input: BridgeJoinRoomInput): Promise<T>;
   sendMessage<T>(input: BridgeSendMessageInput): Promise<T>;
   pullEvents<T>(input: BridgePullEventsInput): Promise<T>;
+  getWorkspaceSnapshot<T>(input: BridgeWorkspaceSnapshotInput): Promise<T>;
   uploadFile<T>(input: BridgeUploadFileInput): Promise<T>;
 };
 
@@ -93,6 +99,11 @@ type PullEventsOptions = SessionFileOptions & {
   roomId?: string;
   afterEventId?: string;
   limit?: number;
+};
+
+type WorkspaceSnapshotOptions = SessionFileOptions & {
+  roomId?: string;
+  eventLimit?: number;
 };
 
 type WatchEventsOptions = PullEventsOptions & {
@@ -264,6 +275,24 @@ export async function pullOpenClawBridgeEvents<T = unknown>(
     roomId: options.roomId ?? session.roomId,
     afterEventId: options.afterEventId,
     limit: options.limit
+  });
+}
+
+export async function getOpenClawBridgeWorkspaceSnapshot<T = unknown>(
+  options: WorkspaceSnapshotOptions
+): Promise<T> {
+  const session = readOpenClawBridgeSessionFile(options.sessionFilePath);
+  const client = resolveClient({
+    client: options.client,
+    baseUrl: session.baseUrl,
+    token: session.token
+  });
+
+  return client.getWorkspaceSnapshot<T>({
+    sessionId: session.sessionId,
+    agentId: session.agentId,
+    roomId: options.roomId ?? session.roomId,
+    eventLimit: options.eventLimit
   });
 }
 

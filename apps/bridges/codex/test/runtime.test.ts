@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   sendCodexBridgeAttachment,
+  getCodexBridgeWorkspaceSnapshot,
   pullCodexBridgeEvents,
   runCodexBridgeSession,
   sendCodexBridgeMessage,
@@ -48,6 +49,7 @@ describe("codex bridge runtime", () => {
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
       sendMessage: vi.fn(),
       pullEvents: vi.fn(),
+      getWorkspaceSnapshot: vi.fn(),
       uploadFile: vi.fn()
     } as const;
 
@@ -105,6 +107,7 @@ describe("codex bridge runtime", () => {
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
       sendMessage: vi.fn(),
       pullEvents: vi.fn(),
+      getWorkspaceSnapshot: vi.fn(),
       uploadFile: vi.fn()
     } as const;
 
@@ -144,6 +147,7 @@ describe("codex bridge runtime", () => {
       disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
       sendMessage: vi.fn(),
       pullEvents: vi.fn(),
+      getWorkspaceSnapshot: vi.fn(),
       uploadFile: vi.fn()
     } as const;
 
@@ -354,6 +358,51 @@ describe("codex bridge runtime", () => {
     }
   });
 
+  it("reads the persisted session file and fetches a workspace snapshot", async () => {
+    const tempDir = createTempDir("ma-codex-bridge-");
+    const sessionFilePath = join(tempDir, "codex-session.json");
+    const client = {
+      getWorkspaceSnapshot: vi.fn().mockResolvedValue({
+        room: { id: "room-2" },
+        recentEvents: [{ eventId: "evt-2", kind: "message.created", roomId: "room-2" }]
+      })
+    };
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        displayName: "Codex",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      const snapshot = await getCodexBridgeWorkspaceSnapshot({
+        client: client as never,
+        sessionFilePath,
+        roomId: "room-2",
+        eventLimit: 15
+      });
+
+      expect(client.getWorkspaceSnapshot).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        roomId: "room-2",
+        eventLimit: 15
+      });
+      expect(snapshot).toEqual({
+        room: { id: "room-2" },
+        recentEvents: [{ eventId: "evt-2", kind: "message.created", roomId: "room-2" }]
+      });
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("watches room events with cursor advancement", async () => {
     const tempDir = createTempDir("ma-codex-bridge-");
     const sessionFilePath = join(tempDir, "codex-session.json");
@@ -432,6 +481,7 @@ describe("codex bridge runtime", () => {
       disconnect: vi.fn().mockRejectedValue(new Error("disconnect failed")),
       sendMessage: vi.fn(),
       pullEvents: vi.fn(),
+      getWorkspaceSnapshot: vi.fn(),
       uploadFile: vi.fn()
     } as const;
 

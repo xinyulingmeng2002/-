@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 
 import { formatOpenClawBridgeUsage, parseOpenClawBridgeCliArgs } from "./config";
 import {
+  getOpenClawBridgeWorkspaceSnapshot,
   pullOpenClawBridgeEvents,
   runOpenClawBridgeSession,
   sendOpenClawBridgeAttachment,
@@ -110,6 +111,12 @@ export async function runOpenClawBridgeCli(argv = process.argv.slice(2)): Promis
       process.off("SIGINT", stop);
       process.off("SIGTERM", stop);
     }
+    return;
+  }
+
+  if (parsed.kind === "workspace.snapshot") {
+    const snapshot = await getOpenClawBridgeWorkspaceSnapshot(parsed.options);
+    console.log(JSON.stringify(snapshot, null, 2));
     return;
   }
 

@@ -53,6 +53,14 @@ export type CodexBridgeCliCommand =
       };
     }
   | {
+      kind: "workspace.snapshot";
+      options: {
+        sessionFilePath: string;
+        roomId?: string;
+        eventLimit?: number;
+      };
+    }
+  | {
       kind: "attachment.send";
       options: {
         sessionFilePath: string;
@@ -191,6 +199,22 @@ export function parseCodexBridgeCliArgs(
     };
   }
 
+  if (commandKey === "workspace.snapshot") {
+    const eventLimitValue = flags["event-limit"] ? Number.parseInt(flags["event-limit"], 10) : undefined;
+
+    return {
+      kind: "workspace.snapshot",
+      options: {
+        sessionFilePath,
+        roomId: flags["room-id"],
+        eventLimit:
+          Number.isFinite(eventLimitValue) && eventLimitValue && eventLimitValue > 0
+            ? eventLimitValue
+            : undefined
+      }
+    };
+  }
+
   if (commandKey === "attachment.send") {
     return {
       kind: "attachment.send",
@@ -213,6 +237,7 @@ export function formatCodexBridgeUsage(): string {
     "  npm --workspace @ma/bridge-codex run dev -- message send --body <text>",
     "  npm --workspace @ma/bridge-codex run dev -- events pull --after-event-id <event-id>",
     "  npm --workspace @ma/bridge-codex run dev -- events watch --after-event-id <event-id> --poll-ms <ms>",
+    "  npm --workspace @ma/bridge-codex run dev -- workspace snapshot --event-limit <n>",
     "  npm --workspace @ma/bridge-codex run dev -- attachment send --file <path> --caption <text>",
     "  npm --workspace @ma/bridge-codex run dev -- session stop",
     "",

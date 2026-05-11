@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 
 import { formatCodexBridgeUsage, parseCodexBridgeCliArgs } from "./config";
 import {
+  getCodexBridgeWorkspaceSnapshot,
   pullCodexBridgeEvents,
   runCodexBridgeSession,
   sendCodexBridgeAttachment,
@@ -110,6 +111,12 @@ export async function runCodexBridgeCli(argv = process.argv.slice(2)): Promise<v
       process.off("SIGINT", stop);
       process.off("SIGTERM", stop);
     }
+    return;
+  }
+
+  if (parsed.kind === "workspace.snapshot") {
+    const snapshot = await getCodexBridgeWorkspaceSnapshot(parsed.options);
+    console.log(JSON.stringify(snapshot, null, 2));
     return;
   }
 
