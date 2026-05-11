@@ -182,7 +182,15 @@ describe("RoomShell", () => {
       })
     );
 
-    render(<RoomShell apiClient={apiClient} createSocketClient={createSocketClient} />);
+    const onOpenAgentWorkspace = vi.fn();
+
+    render(
+      <RoomShell
+        apiClient={apiClient}
+        createSocketClient={createSocketClient}
+        onOpenAgentWorkspace={onOpenAgentWorkspace}
+      />
+    );
 
     expect(await screen.findByText("已接入默认协作空间")).toBeInTheDocument();
     await waitFor(() => {
@@ -209,6 +217,12 @@ describe("RoomShell", () => {
 
     expect((await screen.findAllByText("实时助手")).length).toBeGreaterThan(0);
     expect(await screen.findByText("在线桥接")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "打开 实时助手 工作台" }));
+    expect(onOpenAgentWorkspace).toHaveBeenCalledWith({
+      roomId: "room-1",
+      agentId: "agent-realtime",
+      sessionId: "session-1"
+    });
 
     await act(async () => {
       handlers.message?.({

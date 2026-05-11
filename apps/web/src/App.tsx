@@ -17,10 +17,20 @@ export function App() {
   return (
     <RoomShell
       apiClient={apiClient}
-      onOpenAgentWorkspace={(roomId) => {
+      onOpenAgentWorkspace={({ roomId, agentId, sessionId }) => {
         const params = new URLSearchParams(window.location.search);
         params.set("view", "agent-workspace");
         params.set("roomId", roomId);
+        if (agentId) {
+          params.set("agentId", agentId);
+        } else {
+          params.delete("agentId");
+        }
+        if (sessionId) {
+          params.set("sessionId", sessionId);
+        } else {
+          params.delete("sessionId");
+        }
         window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
         setSearch(window.location.search);
       }}

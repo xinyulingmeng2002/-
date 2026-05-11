@@ -30,7 +30,11 @@ type RoomShellProps = {
   apiClient: ApiClient;
   speakerParticipantId?: string;
   createSocketClient?: (baseUrl?: string) => RoomSocketClient;
-  onOpenAgentWorkspace?: (roomId: string) => void;
+  onOpenAgentWorkspace?: (input: {
+    roomId: string;
+    agentId?: string;
+    sessionId?: string;
+  }) => void;
 };
 
 type AgentPanelData = {
@@ -593,7 +597,7 @@ export function RoomShell({
             <button
               type="button"
               className="panel-link-button"
-              onClick={() => onOpenAgentWorkspace(activeRoomId)}
+              onClick={() => onOpenAgentWorkspace({ roomId: activeRoomId })}
             >
               打开 Agent 工作台
             </button>
@@ -617,6 +621,7 @@ export function RoomShell({
             onAcceptCandidate={handleAcceptCandidate}
             onRejectCandidate={handleRejectCandidate}
             onSharePrivateMemory={handleSharePrivateMemory}
+            onOpenAgentWorkspace={onOpenAgentWorkspace}
           />
         </div>
       </aside>

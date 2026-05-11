@@ -9,6 +9,7 @@ describe("AgentPanel", () => {
     const onAcceptCandidate = vi.fn().mockResolvedValue(undefined);
     const onRejectCandidate = vi.fn().mockResolvedValue(undefined);
     const onSharePrivateMemory = vi.fn().mockResolvedValue(undefined);
+    const onOpenAgentWorkspace = vi.fn();
 
     render(
       <AgentPanel
@@ -115,10 +116,17 @@ describe("AgentPanel", () => {
         onAcceptCandidate={onAcceptCandidate}
         onRejectCandidate={onRejectCandidate}
         onSharePrivateMemory={onSharePrivateMemory}
+        onOpenAgentWorkspace={onOpenAgentWorkspace}
       />
     );
 
     expect(screen.getAllByText("Codex").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "打开 Codex 工作台" }));
+    expect(onOpenAgentWorkspace).toHaveBeenCalledWith({
+      roomId: "room-1",
+      agentId: "agent-codex",
+      sessionId: "session-1"
+    });
     expect(screen.getByRole("button", { name: "创建接入令牌" })).toBeInTheDocument();
     expect(screen.getByText("候选审核")).toBeInTheDocument();
     expect(screen.getByText("补 rollout checklist")).toBeInTheDocument();

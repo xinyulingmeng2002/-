@@ -39,6 +39,11 @@ type AgentPanelProps = {
     agentId: string;
     candidateType: "summary" | "todo" | "blocker" | "decision";
   }) => Promise<void>;
+  onOpenAgentWorkspace?: (input: {
+    roomId: string;
+    agentId: string;
+    sessionId: string;
+  }) => void;
 };
 
 function resolveDisplayName(participants: ParticipantRecord[], agentId: string): string {
@@ -59,7 +64,8 @@ export function AgentPanel({
   onRevokeToken,
   onAcceptCandidate,
   onRejectCandidate,
-  onSharePrivateMemory
+  onSharePrivateMemory,
+  onOpenAgentWorkspace
 }: AgentPanelProps) {
   const connectedSessions = sessions.filter((session) => session.status === "connected");
 
@@ -82,6 +88,21 @@ export function AgentPanel({
                 <span className="status-pill status-pill--on">connected</span>
                 <span>{session.activeRoomIds.join(", ") || "未加入房间"}</span>
               </div>
+              {onOpenAgentWorkspace && session.activeRoomIds.includes(activeRoomId) ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() =>
+                    onOpenAgentWorkspace({
+                      roomId: activeRoomId,
+                      agentId: session.agentId,
+                      sessionId: session.id
+                    })
+                  }
+                >
+                  打开 {resolveDisplayName(participants, session.agentId)} 工作台
+                </button>
+              ) : null}
             </article>
           ))}
         </div>
