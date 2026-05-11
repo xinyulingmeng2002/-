@@ -131,6 +131,21 @@ export function AgentWorkspacePage() {
     setPrivateMemoryOverview(loadedPrivateMemoryOverview);
   }
 
+  async function refreshWorkspaceAfterWrite(config: WorkspaceConfig) {
+    const [loadedSnapshot, batch] = await Promise.all([
+      fetchBridgeWorkspaceSnapshot(config),
+      fetchBridgeWorkspaceEvents({
+        ...config,
+        afterEventId: nextCursor ?? undefined,
+        limit: config.eventLimit
+      })
+    ]);
+
+    setSnapshot(loadedSnapshot);
+    setEvents((current) => appendEvents(appendEvents(current, loadedSnapshot.recentEvents), batch.items));
+    setNextCursor(batch.nextCursor ?? loadedSnapshot.nextCursor);
+  }
+
   async function sharePrivateMemory(overview: PrivateMemoryOverview) {
     if (!activeConfig || !overview.suggestedShareCandidate) {
       return;
@@ -146,6 +161,7 @@ export function AgentWorkspacePage() {
         candidateType: overview.suggestedShareCandidate.candidateType
       });
       await refreshPrivateMemoryOverview(activeConfig);
+      await refreshWorkspaceAfterWrite(activeConfig);
       setStatusText("私有记忆已提交为共享候选，等待人工审核。");
     } catch {
       setErrorText("提交共享候选失败，请稍后重试。");

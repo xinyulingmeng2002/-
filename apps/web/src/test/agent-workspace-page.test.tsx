@@ -23,6 +23,11 @@ import { App } from "../App";
 
 describe("AgentWorkspacePage", () => {
   beforeEach(() => {
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockReset();
+    vi.mocked(fetchBridgeWorkspaceEvents).mockReset();
+    vi.mocked(sendBridgeWorkspaceMessage).mockReset();
+    vi.mocked(fetchBridgeWorkspacePrivateMemoryOverview).mockReset();
+    vi.mocked(shareBridgeWorkspacePrivateMemory).mockReset();
     window.history.pushState(
       {},
       "",
@@ -44,7 +49,7 @@ describe("AgentWorkspacePage", () => {
     }) as typeof window.setInterval);
     vi.spyOn(window, "clearInterval").mockImplementation(() => undefined);
 
-    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValue({
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
       agent: {
         id: "agent-codex-main",
         displayName: "Codex",
@@ -194,7 +199,6 @@ describe("AgentWorkspacePage", () => {
       recentEvents: [],
       nextCursor: null
     });
-
     vi.mocked(sendBridgeWorkspaceMessage).mockResolvedValue({
       eventId: "evt-3",
       kind: "message.created",
@@ -244,7 +248,7 @@ describe("AgentWorkspacePage", () => {
   });
 
   it("submits a private memory as a shared candidate from the workspace", async () => {
-    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValue({
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
       agent: {
         id: "agent-codex-main",
         displayName: "Codex",
@@ -263,6 +267,35 @@ describe("AgentWorkspacePage", () => {
       sharedKnowledge: [],
       recentEvents: [],
       nextCursor: null
+    });
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
+      agent: {
+        id: "agent-codex-main",
+        displayName: "Codex",
+        capabilities: ["chat", "code"]
+      },
+      session: {
+        id: "session-1",
+        activeRoomIds: ["room-1"],
+        lastSeenAt: "2026-05-10T00:00:05.000Z",
+        expiresAt: "2026-05-10T00:02:05.000Z"
+      },
+      room: { id: "room-1" },
+      participants: [],
+      latestSummary: null,
+      workMemory: {
+        roomId: "room-1",
+        recentMessages: [],
+        activeParticipantIds: ["agent-codex-main"],
+        todoItems: [],
+        blockerItems: [],
+        decisionItems: ["候选已提交，等待人工审核"],
+        lastSummaryDraftId: null,
+        updatedAt: "2026-05-10T00:00:05.000Z"
+      },
+      sharedKnowledge: [],
+      recentEvents: [],
+      nextCursor: "evt-private-submitted"
     });
     vi.mocked(fetchBridgeWorkspacePrivateMemoryOverview)
       .mockResolvedValueOnce([
@@ -316,6 +349,22 @@ describe("AgentWorkspacePage", () => {
       reviewedBy: null,
       acceptedInto: []
     });
+    vi.mocked(fetchBridgeWorkspaceEvents).mockResolvedValueOnce({
+      items: [
+        {
+          eventId: "evt-private-submitted",
+          kind: "memory.candidate.submitted",
+          roomId: "room-1",
+          timestamp: "2026-05-10T00:00:05.000Z",
+          payload: {
+            messageId: "cand-private-1",
+            speakerParticipantId: "agent-codex-main",
+            body: "共享候选已提交，等待人工审核。"
+          }
+        }
+      ],
+      nextCursor: "evt-private-submitted"
+    });
 
     render(<App />);
 
@@ -356,5 +405,14 @@ describe("AgentWorkspacePage", () => {
     );
     expect(screen.getByText("1 条私有记忆 / 0 条可提交候选")).toBeInTheDocument();
     expect(screen.getByText("已提交候选 cand-private-1")).toBeInTheDocument();
+    expect(fetchBridgeWorkspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(fetchBridgeWorkspaceEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        afterEventId: undefined,
+        limit: 20
+      })
+    );
+    expect(await screen.findByText("候选已提交，等待人工审核")).toBeInTheDocument();
+    expect(screen.getByText("共享候选已提交，等待人工审核。")).toBeInTheDocument();
   });
 });
