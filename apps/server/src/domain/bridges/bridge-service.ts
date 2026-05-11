@@ -6,6 +6,7 @@ import type {
 import type { RoomSummaryStore } from "../memory/room-summary-store";
 import type { SharedKnowledgeStore } from "../memory/shared-knowledge-store";
 import type { WorkMemoryStore } from "../memory/work-memory-store";
+import type { MemoryCandidateStore } from "../memory/memory-candidate-store";
 import type { ParticipantRecord, ParticipantStore } from "../participants/participant-store";
 import type { BridgeSessionRecord, BridgeSessionStore } from "./bridge-session-store";
 import type { BridgeKind, BridgeTokenStore } from "./bridge-token-store";
@@ -20,6 +21,7 @@ type BridgeServiceOptions = {
   roomSummaryStore?: RoomSummaryStore;
   workMemoryStore?: WorkMemoryStore;
   sharedKnowledgeStore?: SharedKnowledgeStore;
+  memoryCandidateStore?: MemoryCandidateStore;
   now?: () => Date;
   sessionTtlMs?: number;
 };
@@ -73,6 +75,7 @@ export class BridgeService {
   private readonly roomSummaryStore?: RoomSummaryStore;
   private readonly workMemoryStore?: WorkMemoryStore;
   private readonly sharedKnowledgeStore?: SharedKnowledgeStore;
+  private readonly memoryCandidateStore?: MemoryCandidateStore;
   private readonly now: () => Date;
   private readonly sessionTtlMs: number;
 
@@ -84,6 +87,7 @@ export class BridgeService {
     this.roomSummaryStore = options.roomSummaryStore;
     this.workMemoryStore = options.workMemoryStore;
     this.sharedKnowledgeStore = options.sharedKnowledgeStore;
+    this.memoryCandidateStore = options.memoryCandidateStore;
     this.now = options.now ?? (() => new Date());
     this.sessionTtlMs = options.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
   }
@@ -316,6 +320,12 @@ export class BridgeService {
       latestSummary: this.roomSummaryStore?.getLatest(input.roomId) ?? null,
       workMemory: this.workMemoryStore?.get(input.roomId) ?? null,
       sharedKnowledge: this.sharedKnowledgeStore?.list({ roomId: input.roomId }) ?? [],
+      memoryCandidates:
+        this.memoryCandidateStore?.list({
+          roomId: input.roomId,
+          scope: "shared",
+          status: "proposed"
+        }) ?? [],
       recentEvents,
       nextCursor: recentEvents.at(-1)?.eventId ?? null
     };

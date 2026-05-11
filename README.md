@@ -61,7 +61,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 通用 Agent 工作入口：
 
-- `GET /api/bridge/egress/workspace?agentId=<id>&sessionId=<id>&roomId=<roomId>&eventLimit=<n>`：返回当前 Agent、session、房间、参与者、最新摘要、工作记忆、共享知识、最近事件与 `nextCursor`
+- `GET /api/bridge/egress/workspace?agentId=<id>&sessionId=<id>&roomId=<roomId>&eventLimit=<n>`：返回当前 Agent、session、房间、参与者、最新摘要、工作记忆、共享知识、待审核共享候选、最近事件与 `nextCursor`
 - `GET /api/bridge/egress/events?agentId=<id>&roomId=<roomId>&afterEventId=<eventId>&limit=<n>`：返回房间事件增量，供 adapter 轮询
 - `@ma/bridge-shared` 已提供 `getWorkspaceSnapshot()` 和 `pullEvents()`，Codex / OpenClaw 只是这条统一边界上的首批示范适配器
 - 浏览器 Agent 工作台额外复用现有私有记忆受控接口：只读取 `GET /api/private-memories/summary` 的去敏概览，并通过 `POST /api/private-memories/:id/share-candidate` 提交共享候选；它不会展示 L3 私有原文，也不会绕过人工候选审核

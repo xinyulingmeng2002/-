@@ -360,6 +360,20 @@ export function AgentWorkspacePage() {
                 </article>
 
                 <article className="workspace-mini-card">
+                  <h3>待审核候选</h3>
+                  {snapshot.memoryCandidates.length === 0 ? <p>当前房间暂无待审核候选。</p> : null}
+                  {snapshot.memoryCandidates.map((candidate) => (
+                    <div key={candidate.candidateId} className="workspace-knowledge-row">
+                      <strong>{candidate.title}</strong>
+                      <p>{candidate.body}</p>
+                      <small>
+                        {candidate.candidateType} · {candidate.status} · {candidate.proposedBy}
+                      </small>
+                    </div>
+                  ))}
+                </article>
+
+                <article className="workspace-mini-card">
                   <h3>私有记忆状态</h3>
                   {privateMemoryOverview.length === 0 ? <p>当前房间暂无私有记忆状态。</p> : null}
                   {privateMemoryOverview.map((overview) => (

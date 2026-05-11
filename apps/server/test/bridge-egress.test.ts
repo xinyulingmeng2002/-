@@ -475,6 +475,32 @@ describe("bridge egress", () => {
         }
       });
 
+      const privateMemory = await app.inject({
+        method: "POST",
+        url: "/api/private-memories",
+        payload: {
+          agentId: "agent-generic",
+          roomId: "room-1",
+          memoryType: "insight",
+          title: "Workspace pending candidate",
+          body: "This should be visible to bridged agents as a proposed shared candidate.",
+          tags: ["workspace"],
+          confidence: 0.9,
+          sourceEventIds: [humanMessage.json().eventId]
+        }
+      });
+      expect(privateMemory.statusCode).toBe(201);
+
+      const candidate = await app.inject({
+        method: "POST",
+        url: `/api/private-memories/${privateMemory.json().memoryId as string}/share-candidate`,
+        payload: {
+          agentId: "agent-generic",
+          candidateType: "decision"
+        }
+      });
+      expect(candidate.statusCode).toBe(201);
+
       currentTime = new Date("2026-05-10T09:01:00.000Z");
 
       const snapshot = await app.inject({
@@ -516,6 +542,16 @@ describe("bridge egress", () => {
           activeParticipantIds: ["human-owner", "agent-generic"]
         }),
         sharedKnowledge: [],
+        memoryCandidates: [
+          expect.objectContaining({
+            candidateId: candidate.json().candidateId,
+            roomId: "room-1",
+            scope: "shared",
+            status: "proposed",
+            candidateType: "decision",
+            targetAgentId: "agent-generic"
+          })
+        ],
         recentEvents: [
           expect.objectContaining({
             eventId: humanMessage.json().eventId,
@@ -524,6 +560,14 @@ describe("bridge egress", () => {
           expect.objectContaining({
             actorParticipantId: "agent-generic",
             roomId: "room-1"
+          }),
+          expect.objectContaining({
+            actorParticipantId: "agent-generic",
+            kind: "memory.candidate.submitted",
+            roomId: "room-1",
+            payload: expect.objectContaining({
+              candidateId: candidate.json().candidateId
+            })
           })
         ],
         nextCursor: expect.any(String)

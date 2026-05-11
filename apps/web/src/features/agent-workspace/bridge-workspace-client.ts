@@ -35,6 +35,7 @@ export type BridgeWorkspaceSnapshot = {
   latestSummary: RoomSummaryRecord | null;
   workMemory: WorkMemoryRecord | null;
   sharedKnowledge: SharedKnowledgeRecord[];
+  memoryCandidates: MemoryCandidateRecord[];
   recentEvents: MessageEventRecord[];
   nextCursor: string | null;
 };

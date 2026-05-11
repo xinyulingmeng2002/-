@@ -81,6 +81,7 @@ Response:
   latestSummary: RoomSummaryRecord | null;
   workMemory: WorkMemoryRecord | null;
   sharedKnowledge: SharedKnowledgeRecord[];
+  memoryCandidates: MemoryCandidateRecord[];
   recentEvents: RoomEventRecord[];
   nextCursor: string | null;
 }

@@ -94,6 +94,7 @@ export function buildServer(options: BuildServerOptions = {}) {
     roomSummaryStore,
     workMemoryStore,
     sharedKnowledgeStore,
+    memoryCandidateStore,
     now
   });
 

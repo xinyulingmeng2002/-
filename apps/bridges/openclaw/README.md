@@ -155,7 +155,7 @@ const snapshot = await client.getWorkspaceSnapshot({
 GET /api/bridge/egress/workspace?agentId=<id>&sessionId=<id>&roomId=<roomId>&eventLimit=<n>
 ```
 
-返回内容包括 Agent/session、房间、参与者、最新摘要、工作记忆、已共享知识、最近事件和 `nextCursor`。这不是 OpenClaw 私有接口，任意符合 bridge 边界的 Agent adapter 都应走同一入口。
+返回内容包括 Agent/session、房间、参与者、最新摘要、工作记忆、已共享知识、待审核共享候选、最近事件和 `nextCursor`。这不是 OpenClaw 私有接口，任意符合 bridge 边界的 Agent adapter 都应走同一入口。
 
 工作台里的私有记忆区只显示 `GET /api/private-memories/summary` 返回的去敏状态；提交共享内容时仍走 `POST /api/private-memories/:id/share-candidate`，候选需要人工审核后才会进入共享层。
 

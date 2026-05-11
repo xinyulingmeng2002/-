@@ -108,6 +108,25 @@ describe("AgentWorkspacePage", () => {
           updatedAt: "2026-05-10T00:00:00.000Z"
         }
       ],
+      memoryCandidates: [
+        {
+          candidateId: "cand-pending-1",
+          roomId: "room-1",
+          scope: "shared",
+          candidateType: "decision",
+          title: "待审核协作决策",
+          body: "Agent 提交的共享候选需要等待人类审核。",
+          status: "proposed",
+          proposedBy: "agent:agent-codex-main",
+          sourceEventIds: ["evt-2"],
+          sourceMemoryIds: ["mem-1"],
+          targetAgentId: "agent-codex-main",
+          createdAt: "2026-05-10T00:00:00.000Z",
+          reviewedAt: null,
+          reviewedBy: null,
+          acceptedInto: []
+        }
+      ],
       recentEvents: [
         {
           eventId: "evt-2",
@@ -159,6 +178,9 @@ describe("AgentWorkspacePage", () => {
 
     expect(screen.getByText("Codex")).toBeInTheDocument();
     expect(screen.getByText("统一工作台")).toBeInTheDocument();
+    expect(screen.getByText("待审核候选")).toBeInTheDocument();
+    expect(screen.getByText("待审核协作决策")).toBeInTheDocument();
+    expect(screen.getByText("Agent 提交的共享候选需要等待人类审核。")).toBeInTheDocument();
     expect(screen.getByText("先建立统一工作台")).toBeInTheDocument();
     expect(screen.getByText("等待 bridge token 输入")).toBeInTheDocument();
 
@@ -196,6 +218,7 @@ describe("AgentWorkspacePage", () => {
       latestSummary: null,
       workMemory: null,
       sharedKnowledge: [],
+      memoryCandidates: [],
       recentEvents: [],
       nextCursor: null
     });
@@ -265,6 +288,7 @@ describe("AgentWorkspacePage", () => {
       latestSummary: null,
       workMemory: null,
       sharedKnowledge: [],
+      memoryCandidates: [],
       recentEvents: [],
       nextCursor: null
     });
@@ -294,6 +318,7 @@ describe("AgentWorkspacePage", () => {
         updatedAt: "2026-05-10T00:00:05.000Z"
       },
       sharedKnowledge: [],
+      memoryCandidates: [],
       recentEvents: [],
       nextCursor: "evt-private-submitted"
     });
