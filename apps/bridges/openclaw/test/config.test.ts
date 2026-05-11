@@ -1,8 +1,63 @@
 import { describe, expect, it } from "vitest";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 import { parseOpenClawBridgeCliArgs } from "../src/config";
 
 describe("openclaw bridge config", () => {
+  it("parses session start arguments from an agent invite file", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "ma-openclaw-invite-"));
+    const inviteFilePath = join(tempDir, "invite.json");
+
+    try {
+      writeFileSync(
+        inviteFilePath,
+        JSON.stringify({
+          type: "multi-agent-room-invite",
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          primaryRoomId: "room-invite",
+          roomIds: ["room-invite"]
+        }),
+        "utf8"
+      );
+
+      const parsed = parseOpenClawBridgeCliArgs(
+        [
+          "session",
+          "start",
+          "--invite-file",
+          inviteFilePath,
+          "--agent-id",
+          "agent-openclaw-main",
+          "--display-name",
+          "OpenClaw Main"
+        ],
+        {
+          MA_BRIDGE_SESSION_FILE: "/tmp/openclaw-session.json"
+        },
+        "/workspace"
+      );
+
+      expect(parsed).toEqual({
+        kind: "session.start",
+        options: {
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          agentId: "agent-openclaw-main",
+          displayName: "OpenClaw Main",
+          roomId: "room-invite",
+          capabilities: ["chat", "tools"],
+          sessionFilePath: "/tmp/openclaw-session.json",
+          heartbeatMs: 45000
+        }
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("parses session start arguments with env fallbacks", () => {
     const parsed = parseOpenClawBridgeCliArgs(
       ["session", "start", "--room-id", "room-1", "--heartbeat-ms", "30000"],

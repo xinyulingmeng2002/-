@@ -10,6 +10,7 @@ export type OpenClawBridgeSessionRecord = {
   roomId: string;
   capabilities: string[];
   heartbeatMs: number;
+  lastEventId?: string;
 };
 
 function asMessage(error: unknown): string {

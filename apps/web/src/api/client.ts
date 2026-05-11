@@ -61,8 +61,40 @@ export type BridgeTokenRecord = {
   revokedAt: string | null;
 };
 
+export type AgentInvitePackage = {
+  type: "multi-agent-room-invite";
+  version: "1";
+  label: string;
+  bridgeKind: BridgeKind;
+  roomIds: string[];
+  primaryRoomId: string | null;
+  baseUrl: string;
+  token: string;
+  endpoints: {
+    connect: string;
+    joinRoom: string;
+    heartbeat: string;
+    disconnect: string;
+    pullEvents: string;
+    workspace: string;
+    sendMessage: string;
+    uploadFile: string;
+  };
+  identityRules: {
+    mustDeclareAgentIdentity: boolean;
+    mustNotImpersonateHuman: boolean;
+    bridgeOnlyTransportsMessages: boolean;
+    privateMemoryRequiresReview: boolean;
+  };
+  ownerControls: {
+    canRevokeToken: boolean;
+    canDisconnectSession: boolean;
+  };
+};
+
 export type BridgeTokenCreateResponse = {
   token: string;
+  invite: AgentInvitePackage;
   metadata: BridgeTokenRecord;
 };
 
@@ -254,6 +286,7 @@ export class ApiClient {
     label: string;
     bridgeKind: BridgeKind;
     allowedRoomIds: string[];
+    baseUrl?: string;
   }): Promise<BridgeTokenCreateResponse> {
     return this.request<BridgeTokenCreateResponse>("/api/bridge-tokens", {
       method: "POST",
@@ -273,6 +306,12 @@ export class ApiClient {
   async listBridgeSessions(): Promise<BridgeSessionRecord[]> {
     const response = await this.request<{ items: BridgeSessionRecord[] }>("/api/bridge-sessions");
     return response.items;
+  }
+
+  async disconnectBridgeSession(id: string): Promise<BridgeSessionRecord> {
+    return this.request<BridgeSessionRecord>(`/api/bridge-sessions/${id}/disconnect`, {
+      method: "POST"
+    });
   }
 
   async listMemoryCandidates(input: {

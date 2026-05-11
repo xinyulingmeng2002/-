@@ -1,8 +1,63 @@
 import { describe, expect, it } from "vitest";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 import { parseCodexBridgeCliArgs } from "../src/config";
 
 describe("codex bridge config", () => {
+  it("parses session start arguments from an agent invite file", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "ma-codex-invite-"));
+    const inviteFilePath = join(tempDir, "invite.json");
+
+    try {
+      writeFileSync(
+        inviteFilePath,
+        JSON.stringify({
+          type: "multi-agent-room-invite",
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          primaryRoomId: "room-invite",
+          roomIds: ["room-invite"]
+        }),
+        "utf8"
+      );
+
+      const parsed = parseCodexBridgeCliArgs(
+        [
+          "session",
+          "start",
+          "--invite-file",
+          inviteFilePath,
+          "--agent-id",
+          "agent-codex-main",
+          "--display-name",
+          "Codex Main"
+        ],
+        {
+          MA_BRIDGE_SESSION_FILE: "/tmp/codex-session.json"
+        },
+        "/workspace"
+      );
+
+      expect(parsed).toEqual({
+        kind: "session.start",
+        options: {
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          agentId: "agent-codex-main",
+          displayName: "Codex Main",
+          roomId: "room-invite",
+          capabilities: ["chat", "code"],
+          sessionFilePath: "/tmp/codex-session.json",
+          heartbeatMs: 45000
+        }
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("parses session start arguments with env fallbacks", () => {
     const parsed = parseCodexBridgeCliArgs(
       ["session", "start", "--room-id", "room-1", "--heartbeat-ms", "30000"],

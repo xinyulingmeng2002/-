@@ -40,13 +40,13 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 ## Bridge 接入流程
 
-当前已经具备 bridge token、agent session、房间绑定、消息入口、附件入口、事件拉取、房间工作快照与 adapter 轮询监听骨架。
+当前已经具备 Agent 邀请钥匙、bridge token、agent session、房间绑定、消息入口、附件入口、事件拉取、房间工作快照与 adapter 轮询监听骨架。
 
 推荐流程：
 
-1. 在前端右侧 `接入令牌` 面板创建 token，或直接调用 `POST /api/bridge-tokens`
-2. 记录创建返回的明文 `token`，它只会返回一次
-3. 在适配器壳里使用 `@ma/bridge-shared` 构造 client
+1. 在前端右侧 `接入令牌` 面板创建 Agent 邀请钥匙，或直接调用 `POST /api/bridge-tokens`
+2. 记录创建返回的 `invite` JSON；它包含房间、端点、身份边界和一次性明文 `token`
+3. 把 `invite` JSON 交给正在运行上下文的外部 AI/Agent，或在适配器壳里使用 `@ma/bridge-shared` 构造 client
 4. 调用 `connect({ agentId, displayName, capabilities })`
 5. 保存返回的 `session.id`
 6. 调用 `joinRoom({ sessionId, agentId, roomId })`
@@ -56,9 +56,11 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 10. 拉取房间新事件时调用 `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
 11. 需要一次性恢复房间工作面时调用 `getWorkspaceSnapshot({ sessionId, agentId, roomId, eventLimit? })`
 12. 示例 adapter 可用 `workspace snapshot --event-limit <n>` 从已保存 session 文件拉取一次房间工作快照
-13. 长时间运行的 adapter 可以用 `events watch` 在外层持续轮询并自行保存 cursor
+13. 长时间运行的 Codex/OpenClaw adapter 可以用 `events watch` 在外层持续轮询；adapter 会把最新 `nextCursor` 保存为 session 文件里的 `lastEventId`，重启后默认从该位置继续
 14. 如果需要浏览器里的独立 Agent 工作台，可打开 `?view=agent-workspace&roomId=<roomId>`，再粘贴 bridge token 手动连接、查看快照、监听事件、通过 bridge ingress 发送文字或正式附件消息，并把去敏私有记忆概览中的可共享项提交为共享候选
-15. 退出时调用 `disconnect({ sessionId, agentId })`
+15. 退出时调用 `disconnect({ sessionId, agentId })`，房主也可以在在线 bridge session 卡片里强制断连
+
+`POST /api/bridge-tokens` 创建响应只在当次返回 `token` 与 `invite`。后续 `GET /api/bridge-tokens` 只返回去敏元数据，不会再次暴露 token 或邀请正文。
 
 通用 Agent 工作入口：
 
@@ -71,6 +73,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 - `apps/bridges/codex/README.md`
 - `apps/bridges/openclaw/README.md`
+- `apps/bridges/generic/README.md`
 
 共享 client 位于：
 

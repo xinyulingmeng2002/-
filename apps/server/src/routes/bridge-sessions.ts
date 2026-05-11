@@ -39,4 +39,22 @@ export const bridgeSessionsRoutes: FastifyPluginAsync<BridgeSessionsRoutesOption
       }))
     };
   });
+
+  app.post("/api/bridge-sessions/:id/disconnect", async (request, reply) => {
+    const { id } = request.params as { id?: string };
+    if (!id) {
+      return reply.code(400).send({ error: "id is required" });
+    }
+
+    const disconnected = bridgeSessionStore.disconnect({
+      id,
+      disconnectedAt: now().toISOString()
+    });
+
+    if (!disconnected) {
+      return reply.code(404).send({ error: "bridge session not found" });
+    }
+
+    return disconnected;
+  });
 };

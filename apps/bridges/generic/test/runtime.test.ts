@@ -1,0 +1,195 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { describe, expect, it, vi } from "vitest";
+
+import {
+  getGenericBridgeWorkspaceSnapshot,
+  runGenericBridgeSession,
+  sendGenericBridgeMessage,
+  stopGenericBridgeSession
+} from "../src/runtime";
+
+function createTempDir(): string {
+  return mkdtempSync(join(tmpdir(), "ma-generic-bridge-"));
+}
+
+function cleanupTempDir(dirPath: string): void {
+  rmSync(dirPath, { recursive: true, force: true });
+}
+
+describe("generic bridge runtime", () => {
+  it("connects from invite-derived options, joins the target room, and writes a reusable session file", async () => {
+    const tempDir = createTempDir();
+    const sessionFilePath = join(tempDir, "generic-session.json");
+    const client = {
+      connect: vi.fn().mockResolvedValue({ session: { id: "session-1" } }),
+      joinRoom: vi.fn().mockResolvedValue({ id: "session-1", activeRoomIds: ["room-1"] }),
+      heartbeat: vi.fn(),
+      disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" }),
+      sendMessage: vi.fn(),
+      getWorkspaceSnapshot: vi.fn()
+    };
+
+    try {
+      const handle = await runGenericBridgeSession({
+        client,
+        baseUrl: "http://127.0.0.1:5173",
+        token: "invite-token",
+        agentId: "agent-generic-main",
+        displayName: "Generic Agent",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        sessionFilePath,
+        heartbeatMs: 10_000
+      });
+
+      expect(client.connect).toHaveBeenCalledWith({
+        agentId: "agent-generic-main",
+        displayName: "Generic Agent",
+        capabilities: ["chat"]
+      });
+      expect(client.joinRoom).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-generic-main",
+        roomId: "room-1",
+        displayName: "Generic Agent",
+        capabilities: ["chat"]
+      });
+      expect(JSON.parse(readFileSync(sessionFilePath, "utf8"))).toEqual({
+        baseUrl: "http://127.0.0.1:5173",
+        token: "invite-token",
+        sessionId: "session-1",
+        agentId: "agent-generic-main",
+        displayName: "Generic Agent",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 10000
+      });
+
+      await handle.shutdown();
+      expect(existsSync(sessionFilePath)).toBe(false);
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("sends a message through the persisted generic session", async () => {
+    const tempDir = createTempDir();
+    const sessionFilePath = join(tempDir, "generic-session.json");
+    const client = {
+      sendMessage: vi.fn().mockResolvedValue({ kind: "message.created", roomId: "room-1" })
+    };
+
+    try {
+      writeFileSync(
+        sessionFilePath,
+        JSON.stringify({
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          sessionId: "session-1",
+          agentId: "agent-generic-main",
+          displayName: "Generic Agent",
+          roomId: "room-1",
+          capabilities: ["chat"],
+          heartbeatMs: 10000
+        }),
+        "utf8"
+      );
+
+      await sendGenericBridgeMessage({
+        client: client as never,
+        sessionFilePath,
+        body: "hello room"
+      });
+
+      expect(client.sendMessage).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-generic-main",
+        roomId: "room-1",
+        body: "hello room"
+      });
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("fetches a workspace snapshot through the persisted generic session", async () => {
+    const tempDir = createTempDir();
+    const sessionFilePath = join(tempDir, "generic-session.json");
+    const client = {
+      getWorkspaceSnapshot: vi.fn().mockResolvedValue({ room: { id: "room-1" } })
+    };
+
+    try {
+      writeFileSync(
+        sessionFilePath,
+        JSON.stringify({
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          sessionId: "session-1",
+          agentId: "agent-generic-main",
+          displayName: "Generic Agent",
+          roomId: "room-1",
+          capabilities: ["chat"],
+          heartbeatMs: 10000
+        }),
+        "utf8"
+      );
+
+      await getGenericBridgeWorkspaceSnapshot({
+        client: client as never,
+        sessionFilePath,
+        eventLimit: 10
+      });
+
+      expect(client.getWorkspaceSnapshot).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-generic-main",
+        roomId: "room-1",
+        eventLimit: 10
+      });
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("disconnects and removes the persisted generic session file", async () => {
+    const tempDir = createTempDir();
+    const sessionFilePath = join(tempDir, "generic-session.json");
+    const client = {
+      disconnect: vi.fn().mockResolvedValue({ status: "disconnected" })
+    };
+
+    try {
+      writeFileSync(
+        sessionFilePath,
+        JSON.stringify({
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          sessionId: "session-1",
+          agentId: "agent-generic-main",
+          displayName: "Generic Agent",
+          roomId: "room-1",
+          capabilities: ["chat"],
+          heartbeatMs: 10000
+        }),
+        "utf8"
+      );
+
+      await stopGenericBridgeSession({
+        client: client as never,
+        sessionFilePath
+      });
+
+      expect(client.disconnect).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-generic-main"
+      });
+      expect(existsSync(sessionFilePath)).toBe(false);
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+});

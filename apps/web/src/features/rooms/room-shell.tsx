@@ -517,6 +517,7 @@ export function RoomShell({
     label: string;
     bridgeKind: "codex" | "openclaw" | "generic";
     allowedRoomIds: string[];
+    baseUrl?: string;
   }): Promise<BridgeTokenCreateResponse> {
     const created = await apiClient.createBridgeToken(input);
     await refreshAgentPanel(activeRoomId);
@@ -525,6 +526,11 @@ export function RoomShell({
 
   async function handleRevokeToken(id: string): Promise<void> {
     await apiClient.revokeBridgeToken(id);
+    await refreshAgentPanel(activeRoomId);
+  }
+
+  async function handleDisconnectSession(id: string): Promise<void> {
+    await apiClient.disconnectBridgeSession(id);
     await refreshAgentPanel(activeRoomId);
   }
 
@@ -618,6 +624,7 @@ export function RoomShell({
             latestSummary={latestSummary}
             onCreateToken={handleCreateToken}
             onRevokeToken={handleRevokeToken}
+            onDisconnectSession={handleDisconnectSession}
             onAcceptCandidate={handleAcceptCandidate}
             onRejectCandidate={handleRejectCandidate}
             onSharePrivateMemory={handleSharePrivateMemory}

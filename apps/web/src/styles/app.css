@@ -510,6 +510,20 @@ body {
   font-size: 12px;
 }
 
+.token-secret-card__invite {
+  max-height: 260px;
+  overflow: auto;
+  margin: 10px 0 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(10, 18, 33, 0.9);
+  color: #eef4ff;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .summary-card {
   box-shadow: inset 0 0 0 1px rgba(26, 74, 217, 0.04);
 }

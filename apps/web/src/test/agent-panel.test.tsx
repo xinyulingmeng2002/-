@@ -10,6 +10,48 @@ describe("AgentPanel", () => {
     const onRejectCandidate = vi.fn().mockResolvedValue(undefined);
     const onSharePrivateMemory = vi.fn().mockResolvedValue(undefined);
     const onOpenAgentWorkspace = vi.fn();
+    const onDisconnectSession = vi.fn().mockResolvedValue(undefined);
+    const onCreateToken = vi.fn().mockResolvedValue({
+      token: "secret-token",
+      invite: {
+        type: "multi-agent-room-invite",
+        version: "1",
+        label: "Codex bridge",
+        bridgeKind: "codex",
+        roomIds: ["room-1"],
+        primaryRoomId: "room-1",
+        baseUrl: "http://localhost:5173",
+        token: "secret-token",
+        endpoints: {
+          connect: "/api/bridge/ingress/connect",
+          joinRoom: "/api/bridge/ingress/join-room",
+          heartbeat: "/api/bridge/ingress/heartbeat",
+          disconnect: "/api/bridge/ingress/disconnect",
+          pullEvents: "/api/bridge/egress/events",
+          workspace: "/api/bridge/egress/workspace",
+          sendMessage: "/api/bridge/ingress/message",
+          uploadFile: "/api/uploads"
+        },
+        identityRules: {
+          mustDeclareAgentIdentity: true,
+          mustNotImpersonateHuman: true,
+          bridgeOnlyTransportsMessages: true,
+          privateMemoryRequiresReview: true
+        },
+        ownerControls: {
+          canRevokeToken: true,
+          canDisconnectSession: true
+        }
+      },
+      metadata: {
+        id: "token-1",
+        label: "Codex bridge",
+        bridgeKind: "codex",
+        allowedRoomIds: ["room-1"],
+        createdAt: "2026-04-15T12:00:00.000Z",
+        revokedAt: null
+      }
+    });
 
     render(
       <AgentPanel
@@ -101,22 +143,13 @@ describe("AgentPanel", () => {
           updatedAt: "2026-04-15T12:10:00.000Z"
         }}
         latestSummary={null}
-        onCreateToken={vi.fn().mockResolvedValue({
-          token: "secret-token",
-          metadata: {
-            id: "token-1",
-            label: "Codex bridge",
-            bridgeKind: "codex",
-            allowedRoomIds: ["room-1"],
-            createdAt: "2026-04-15T12:00:00.000Z",
-            revokedAt: null
-          }
-        })}
+        onCreateToken={onCreateToken}
         onRevokeToken={vi.fn().mockResolvedValue(undefined)}
         onAcceptCandidate={onAcceptCandidate}
         onRejectCandidate={onRejectCandidate}
         onSharePrivateMemory={onSharePrivateMemory}
         onOpenAgentWorkspace={onOpenAgentWorkspace}
+        onDisconnectSession={onDisconnectSession}
       />
     );
 
@@ -127,7 +160,28 @@ describe("AgentPanel", () => {
       agentId: "agent-codex",
       sessionId: "session-1"
     });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "强制断连 Codex" }));
+    });
+    await waitFor(() => {
+      expect(onDisconnectSession).toHaveBeenCalledWith("session-1");
+    });
     expect(screen.getByRole("button", { name: "创建接入令牌" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "创建接入令牌" }));
+    });
+    await waitFor(() => {
+      expect(onCreateToken).toHaveBeenCalledWith({
+        label: "codex-bridge",
+        bridgeKind: "codex",
+        allowedRoomIds: ["room-1"],
+        baseUrl: window.location.origin
+      });
+    });
+    expect(screen.getByText("Agent 邀请钥匙")).toBeInTheDocument();
+    expect(screen.getByText(/复制以下 JSON/)).toBeInTheDocument();
+    expect(screen.getByText(/multi-agent-room-invite/)).toBeInTheDocument();
+    expect(screen.getByText(/secret-token/)).toBeInTheDocument();
     expect(screen.getByText("候选审核")).toBeInTheDocument();
     expect(screen.getByText("补 rollout checklist")).toBeInTheDocument();
     expect(screen.getByText("共享知识")).toBeInTheDocument();

@@ -30,8 +30,10 @@ type AgentPanelProps = {
     label: string;
     bridgeKind: BridgeKind;
     allowedRoomIds: string[];
+    baseUrl?: string;
   }) => Promise<BridgeTokenCreateResponse>;
   onRevokeToken: (id: string) => Promise<void>;
+  onDisconnectSession?: (id: string) => Promise<void>;
   onAcceptCandidate: (candidateId: string) => Promise<void>;
   onRejectCandidate: (candidateId: string) => Promise<void>;
   onSharePrivateMemory: (input: {
@@ -62,6 +64,7 @@ export function AgentPanel({
   latestSummary,
   onCreateToken,
   onRevokeToken,
+  onDisconnectSession,
   onAcceptCandidate,
   onRejectCandidate,
   onSharePrivateMemory,
@@ -101,6 +104,15 @@ export function AgentPanel({
                   }
                 >
                   打开 {resolveDisplayName(participants, session.agentId)} 工作台
+                </button>
+              ) : null}
+              {onDisconnectSession ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => void onDisconnectSession(session.id)}
+                >
+                  强制断连 {resolveDisplayName(participants, session.agentId)}
                 </button>
               ) : null}
             </article>

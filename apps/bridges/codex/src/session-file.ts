@@ -10,6 +10,7 @@ export type CodexBridgeSessionRecord = {
   roomId: string;
   capabilities: string[];
   heartbeatMs: number;
+  lastEventId?: string;
 };
 
 function asMessage(error: unknown): string {

@@ -306,6 +306,18 @@ function hasBatchItems(batch: unknown): boolean {
   return Array.isArray(items) && items.length > 0;
 }
 
+function persistEventCursor(sessionFilePath: string, lastEventId: string | undefined): void {
+  if (!lastEventId) {
+    return;
+  }
+
+  const session = readOpenClawBridgeSessionFile(sessionFilePath);
+  writeOpenClawBridgeSessionFile(sessionFilePath, {
+    ...session,
+    lastEventId
+  });
+}
+
 async function defaultSleep(ms: number): Promise<void> {
   await new Promise((resolvePromise) => {
     setTimeout(resolvePromise, ms);
@@ -313,7 +325,8 @@ async function defaultSleep(ms: number): Promise<void> {
 }
 
 export async function watchOpenClawBridgeEvents(options: WatchEventsOptions): Promise<void> {
-  let afterEventId = options.afterEventId;
+  const session = readOpenClawBridgeSessionFile(options.sessionFilePath);
+  let afterEventId = options.afterEventId ?? session.lastEventId;
   const sleep = options.sleep ?? defaultSleep;
 
   while (!options.signal?.aborted) {
@@ -330,6 +343,7 @@ export async function watchOpenClawBridgeEvents(options: WatchEventsOptions): Pr
     }
 
     afterEventId = resolveNextCursor(batch, afterEventId);
+    persistEventCursor(options.sessionFilePath, afterEventId);
     await sleep(options.pollMs);
   }
 }

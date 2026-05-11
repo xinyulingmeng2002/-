@@ -466,6 +466,59 @@ describe("codex bridge runtime", () => {
           nextCursor: "evt-2"
         }
       ]);
+      const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
+      expect(stored.lastEventId).toBe("evt-2");
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("resumes event watching from the persisted cursor", async () => {
+    const tempDir = createTempDir("ma-codex-bridge-");
+    const sessionFilePath = join(tempDir, "codex-session.json");
+    const abortController = new AbortController();
+    const client = {
+      pullEvents: vi.fn().mockResolvedValue({
+        items: [],
+        nextCursor: "evt-9"
+      })
+    };
+    const sleep = vi.fn().mockImplementation(async () => {
+      abortController.abort();
+    });
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        displayName: "Codex",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000,
+        lastEventId: "evt-8"
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      await watchCodexBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        limit: 20,
+        pollMs: 1,
+        signal: abortController.signal,
+        sleep
+      });
+
+      expect(client.pullEvents).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        roomId: "room-1",
+        afterEventId: "evt-8",
+        limit: 20
+      });
+      const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
+      expect(stored.lastEventId).toBe("evt-9");
     } finally {
       cleanupTempDir(tempDir);
     }

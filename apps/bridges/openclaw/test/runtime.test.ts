@@ -488,6 +488,59 @@ describe("openclaw bridge runtime", () => {
         }
       ]);
       expect(sleep).toHaveBeenCalledWith(10);
+      const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
+      expect(stored.lastEventId).toBe("evt-3");
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("resumes event watching from the persisted cursor", async () => {
+    const tempDir = createTempDir("ma-openclaw-bridge-");
+    const sessionFilePath = join(tempDir, "openclaw-session.json");
+    const abortController = new AbortController();
+    const client = {
+      pullEvents: vi.fn().mockResolvedValue({
+        items: [],
+        nextCursor: "evt-9"
+      })
+    };
+    const sleep = vi.fn().mockImplementation(async () => {
+      abortController.abort();
+    });
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000,
+        lastEventId: "evt-8"
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      await watchOpenClawBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        limit: 20,
+        pollMs: 1,
+        signal: abortController.signal,
+        sleep
+      });
+
+      expect(client.pullEvents).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        roomId: "room-1",
+        afterEventId: "evt-8",
+        limit: 20
+      });
+      const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
+      expect(stored.lastEventId).toBe("evt-9");
     } finally {
       cleanupTempDir(tempDir);
     }

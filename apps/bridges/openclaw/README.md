@@ -10,8 +10,9 @@ npm --workspace @ma/bridge-openclaw run dev -- <command>
 
 ## Required Config
 
-- `token`: 通过 `POST /api/bridge-tokens` 创建，`bridgeKind` 必须是 `openclaw`
-- `baseUrl`: 平台服务端地址，开发环境默认 `http://127.0.0.1:3000`
+- 推荐使用前端 `接入令牌` 面板创建的 Agent 邀请钥匙 JSON，并通过 `--invite-file` 或 `MA_BRIDGE_INVITE_FILE` 传入。
+- `token`: 通过 `POST /api/bridge-tokens` 创建，`bridgeKind` 必须是 `openclaw`。
+- `baseUrl`: 平台地址；使用邀请钥匙时从 `invite.baseUrl` 读取。
 
 ```ts
 import { createBridgeClient } from "@ma/bridge-shared";
@@ -34,6 +35,18 @@ export MA_BRIDGE_CAPABILITIES=chat,tools
 ```
 
 ## Runnable Commands
+
+用 Agent 邀请钥匙启动并保活 session：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- \
+  session start \
+  --invite-file ./invite.json \
+  --agent-id agent-openclaw-main \
+  --display-name OpenClaw
+```
+
+`--invite-file` 会读取 `baseUrl`、一次性 `token` 和默认房间；`--agent-id` 仍由当前 adapter 明确声明，避免把外部 Agent 冒充成人类或其他 Agent。
 
 启动并保活 session：
 
@@ -78,7 +91,7 @@ npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id evt_
 npm --workspace @ma/bridge-openclaw run dev -- events watch --after-event-id evt_123 --limit 20 --poll-ms 2000
 ```
 
-`events watch` 会复用 session 文件，持续调用 bridge egress events，并把每个非空批次输出为一行 JSON。第一版不把 cursor 写回 session 文件，外部运行时如果需要断点续跑，应保存每批返回的 `nextCursor`。
+`events watch` 会复用 session 文件，持续调用 bridge egress events，并把每个非空批次输出为一行 JSON。它会把服务端返回的 `nextCursor` 持久化为 session 文件里的 `lastEventId`；下一次未显式传 `--after-event-id` 时，会默认从该位置继续监听。
 
 拉取房间工作快照：
 
@@ -138,7 +151,7 @@ data/bridges/openclaw/session.json
 6. `uploadFile(file)` 后通过 `sendMessage({ body?, attachments })` 发送正式附件消息
 7. `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
 8. `getWorkspaceSnapshot({ sessionId, agentId, roomId, eventLimit? })` 一次性获取房间工作面
-9. 长运行场景用 `events watch` 持续监听，并由外部保存 `nextCursor`
+9. 长运行场景用 `events watch` 持续监听，adapter 会把 `nextCursor` 写回 session 文件用于断点续跑
 10. 浏览器 Agent 工作台可以复用现有私有记忆受控接口，查看去敏概览并把可共享项提交为共享候选
 11. 退出时 `disconnect({ sessionId, agentId })`
 

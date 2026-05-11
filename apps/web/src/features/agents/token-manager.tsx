@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type {
+  AgentInvitePackage,
   BridgeKind,
   BridgeTokenCreateResponse,
   BridgeTokenRecord
@@ -13,6 +14,7 @@ type TokenManagerProps = {
     label: string;
     bridgeKind: BridgeKind;
     allowedRoomIds: string[];
+    baseUrl?: string;
   }) => Promise<BridgeTokenCreateResponse>;
   onRevokeToken: (id: string) => Promise<void>;
 };
@@ -34,7 +36,7 @@ export function TokenManager({
   const [bridgeKind, setBridgeKind] = useState<BridgeKind>("codex");
   const [allowedRoomIds, setAllowedRoomIds] = useState(activeRoomId);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
+  const [lastCreatedInvite, setLastCreatedInvite] = useState<AgentInvitePackage | null>(null);
 
   useEffect(() => {
     setAllowedRoomIds((current) => (current ? current : activeRoomId));
@@ -47,11 +49,12 @@ export function TokenManager({
       const created = await onCreateToken({
         label: label.trim() || `${bridgeKind}-bridge`,
         bridgeKind,
-        allowedRoomIds: parseAllowedRoomIds(allowedRoomIds)
+        allowedRoomIds: parseAllowedRoomIds(allowedRoomIds),
+        baseUrl: window.location.origin
       });
 
       setLabel("");
-      setLastCreatedToken(created.token);
+      setLastCreatedInvite(created.invite);
     } finally {
       setIsSubmitting(false);
     }
@@ -61,7 +64,7 @@ export function TokenManager({
     <section className="agent-section">
       <div className="agent-section__header">
         <h3>接入令牌</h3>
-        <p>创建后只展示一次明文 token。</p>
+        <p>创建后只展示一次明文 token 和 Agent 邀请钥匙。</p>
       </div>
 
       <div className="token-form">
@@ -98,10 +101,11 @@ export function TokenManager({
         </button>
       </div>
 
-      {lastCreatedToken ? (
+      {lastCreatedInvite ? (
         <div className="token-secret-card">
-          <strong>新令牌</strong>
-          <code>{lastCreatedToken}</code>
+          <strong>Agent 邀请钥匙</strong>
+          <p>复制以下 JSON 给外部 AI/Agent。它包含房间、端点、身份边界和一次性明文 token。</p>
+          <pre className="token-secret-card__invite">{JSON.stringify(lastCreatedInvite, null, 2)}</pre>
         </div>
       ) : null}
 

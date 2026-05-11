@@ -1,4 +1,5 @@
 import { join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -119,6 +120,39 @@ function requireValue(value: string | undefined, fieldName: string): string {
   return value;
 }
 
+type AgentInviteDefaults = {
+  baseUrl?: string;
+  token?: string;
+  roomId?: string;
+};
+
+function readAgentInviteDefaults(inviteFilePath: string | undefined): AgentInviteDefaults {
+  if (!inviteFilePath) {
+    return {};
+  }
+
+  const invite = JSON.parse(readFileSync(inviteFilePath, "utf8")) as {
+    type?: unknown;
+    baseUrl?: unknown;
+    token?: unknown;
+    primaryRoomId?: unknown;
+    roomIds?: unknown;
+  };
+
+  if (invite.type !== "multi-agent-room-invite") {
+    throw new Error("codex_bridge_invalid_invite_type");
+  }
+
+  const fallbackRoomId =
+    Array.isArray(invite.roomIds) && typeof invite.roomIds[0] === "string" ? invite.roomIds[0] : undefined;
+
+  return {
+    baseUrl: typeof invite.baseUrl === "string" ? invite.baseUrl : undefined,
+    token: typeof invite.token === "string" ? invite.token : undefined,
+    roomId: typeof invite.primaryRoomId === "string" ? invite.primaryRoomId : fallbackRoomId
+  };
+}
+
 export function parseCodexBridgeCliArgs(
   argv: string[],
   env: EnvLike,
@@ -127,6 +161,7 @@ export function parseCodexBridgeCliArgs(
   const { command, flags } = parseArgMap(argv);
   const commandKey = command.join(".");
   const sessionFilePath = flags["session-file"] ?? env.MA_BRIDGE_SESSION_FILE ?? defaultSessionFilePath(cwd);
+  const inviteDefaults = readAgentInviteDefaults(flags["invite-file"] ?? env.MA_BRIDGE_INVITE_FILE);
 
   if (commandKey === "session.start") {
     const heartbeatMs = Number.parseInt(
@@ -138,11 +173,11 @@ export function parseCodexBridgeCliArgs(
     return {
       kind: "session.start",
       options: {
-        baseUrl: requireValue(flags["base-url"] ?? env.MA_BRIDGE_BASE_URL, "base_url"),
-        token: requireValue(flags.token ?? env.MA_BRIDGE_TOKEN, "token"),
+        baseUrl: requireValue(flags["base-url"] ?? env.MA_BRIDGE_BASE_URL ?? inviteDefaults.baseUrl, "base_url"),
+        token: requireValue(flags.token ?? env.MA_BRIDGE_TOKEN ?? inviteDefaults.token, "token"),
         agentId: requireValue(flags["agent-id"] ?? env.MA_BRIDGE_AGENT_ID, "agent_id"),
         displayName: flags["display-name"] ?? env.MA_BRIDGE_DISPLAY_NAME ?? "Codex",
-        roomId: requireValue(flags["room-id"] ?? env.MA_BRIDGE_ROOM_ID, "room_id"),
+        roomId: requireValue(flags["room-id"] ?? env.MA_BRIDGE_ROOM_ID ?? inviteDefaults.roomId, "room_id"),
         capabilities: capabilities.length > 0 ? capabilities : ["chat", "code"],
         sessionFilePath,
         heartbeatMs: Number.isFinite(heartbeatMs) && heartbeatMs > 0 ? heartbeatMs : DEFAULT_HEARTBEAT_MS
@@ -233,6 +268,7 @@ export function parseCodexBridgeCliArgs(
 export function formatCodexBridgeUsage(): string {
   return [
     "Usage:",
+    "  npm --workspace @ma/bridge-codex run dev -- session start --invite-file <invite.json> --agent-id <id>",
     "  npm --workspace @ma/bridge-codex run dev -- session start --base-url <url> --token <token> --agent-id <id> --room-id <room>",
     "  npm --workspace @ma/bridge-codex run dev -- message send --body <text>",
     "  npm --workspace @ma/bridge-codex run dev -- events pull --after-event-id <event-id>",
@@ -249,6 +285,7 @@ export function formatCodexBridgeUsage(): string {
     "  MA_BRIDGE_ROOM_ID",
     "  MA_BRIDGE_CAPABILITIES",
     "  MA_BRIDGE_SESSION_FILE",
+    "  MA_BRIDGE_INVITE_FILE",
     "  MA_BRIDGE_HEARTBEAT_MS",
     "  MA_BRIDGE_POLL_MS"
   ].join("\n");

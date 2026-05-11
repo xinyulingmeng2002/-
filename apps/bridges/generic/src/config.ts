@@ -1,9 +1,9 @@
-import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 type EnvLike = Record<string, string | undefined>;
 
-const DEFAULT_POLL_MS = 2_000;
+const DEFAULT_HEARTBEAT_MS = 45_000;
 
 type StartOptions = {
   baseUrl: string;
@@ -16,7 +16,7 @@ type StartOptions = {
   heartbeatMs: number;
 };
 
-export type OpenClawBridgeCliCommand =
+export type GenericBridgeCliCommand =
   | {
       kind: "session.start";
       options: StartOptions;
@@ -35,46 +35,15 @@ export type OpenClawBridgeCliCommand =
       };
     }
   | {
-      kind: "events.pull";
-      options: {
-        sessionFilePath: string;
-        roomId?: string;
-        afterEventId?: string;
-        limit?: number;
-      };
-    }
-  | {
-      kind: "events.watch";
-      options: {
-        sessionFilePath: string;
-        roomId?: string;
-        afterEventId?: string;
-        limit?: number;
-        pollMs: number;
-      };
-    }
-  | {
       kind: "workspace.snapshot";
       options: {
         sessionFilePath: string;
-        roomId?: string;
         eventLimit?: number;
-      };
-    }
-  | {
-      kind: "attachment.send";
-      options: {
-        sessionFilePath: string;
-        filePath: string;
-        caption?: string;
-        mimeType?: string;
       };
     };
 
-const DEFAULT_HEARTBEAT_MS = 45_000;
-
 function defaultSessionFilePath(cwd: string): string {
-  return resolve(cwd, "data", "bridges", "openclaw", "session.json");
+  return resolve(cwd, "data", "bridges", "generic", "session.json");
 }
 
 function parseCapabilities(value: string | undefined): string[] {
@@ -114,7 +83,7 @@ function parseArgMap(argv: string[]): {
 
 function requireValue(value: string | undefined, fieldName: string): string {
   if (!value) {
-    throw new Error(`openclaw_bridge_missing_${fieldName}`);
+    throw new Error(`generic_bridge_missing_${fieldName}`);
   }
 
   return value;
@@ -140,7 +109,7 @@ function readAgentInviteDefaults(inviteFilePath: string | undefined): AgentInvit
   };
 
   if (invite.type !== "multi-agent-room-invite") {
-    throw new Error("openclaw_bridge_invalid_invite_type");
+    throw new Error("generic_bridge_invalid_invite_type");
   }
 
   const fallbackRoomId =
@@ -153,11 +122,11 @@ function readAgentInviteDefaults(inviteFilePath: string | undefined): AgentInvit
   };
 }
 
-export function parseOpenClawBridgeCliArgs(
+export function parseGenericBridgeCliArgs(
   argv: string[],
   env: EnvLike,
   cwd: string
-): OpenClawBridgeCliCommand {
+): GenericBridgeCliCommand {
   const { command, flags } = parseArgMap(argv);
   const commandKey = command.join(".");
   const sessionFilePath = flags["session-file"] ?? env.MA_BRIDGE_SESSION_FILE ?? defaultSessionFilePath(cwd);
@@ -176,9 +145,9 @@ export function parseOpenClawBridgeCliArgs(
         baseUrl: requireValue(flags["base-url"] ?? env.MA_BRIDGE_BASE_URL ?? inviteDefaults.baseUrl, "base_url"),
         token: requireValue(flags.token ?? env.MA_BRIDGE_TOKEN ?? inviteDefaults.token, "token"),
         agentId: requireValue(flags["agent-id"] ?? env.MA_BRIDGE_AGENT_ID, "agent_id"),
-        displayName: flags["display-name"] ?? env.MA_BRIDGE_DISPLAY_NAME ?? "OpenClaw",
+        displayName: flags["display-name"] ?? env.MA_BRIDGE_DISPLAY_NAME ?? "Generic Agent",
         roomId: requireValue(flags["room-id"] ?? env.MA_BRIDGE_ROOM_ID ?? inviteDefaults.roomId, "room_id"),
-        capabilities: capabilities.length > 0 ? capabilities : ["chat", "tools"],
+        capabilities: capabilities.length > 0 ? capabilities : ["chat"],
         sessionFilePath,
         heartbeatMs: Number.isFinite(heartbeatMs) && heartbeatMs > 0 ? heartbeatMs : DEFAULT_HEARTBEAT_MS
       }
@@ -204,36 +173,6 @@ export function parseOpenClawBridgeCliArgs(
     };
   }
 
-  if (commandKey === "events.pull") {
-    const limitValue = flags.limit ? Number.parseInt(flags.limit, 10) : undefined;
-
-    return {
-      kind: "events.pull",
-      options: {
-        sessionFilePath,
-        roomId: flags["room-id"],
-        afterEventId: flags["after-event-id"],
-        limit: Number.isFinite(limitValue) && limitValue && limitValue > 0 ? limitValue : undefined
-      }
-    };
-  }
-
-  if (commandKey === "events.watch") {
-    const limitValue = flags.limit ? Number.parseInt(flags.limit, 10) : undefined;
-    const pollMs = Number.parseInt(flags["poll-ms"] ?? env.MA_BRIDGE_POLL_MS ?? String(DEFAULT_POLL_MS), 10);
-
-    return {
-      kind: "events.watch",
-      options: {
-        sessionFilePath,
-        roomId: flags["room-id"],
-        afterEventId: flags["after-event-id"],
-        limit: Number.isFinite(limitValue) && limitValue && limitValue > 0 ? limitValue : undefined,
-        pollMs: Number.isFinite(pollMs) && pollMs > 0 ? pollMs : DEFAULT_POLL_MS
-      }
-    };
-  }
-
   if (commandKey === "workspace.snapshot") {
     const eventLimitValue = flags["event-limit"] ? Number.parseInt(flags["event-limit"], 10) : undefined;
 
@@ -241,7 +180,6 @@ export function parseOpenClawBridgeCliArgs(
       kind: "workspace.snapshot",
       options: {
         sessionFilePath,
-        roomId: flags["room-id"],
         eventLimit:
           Number.isFinite(eventLimitValue) && eventLimitValue && eventLimitValue > 0
             ? eventLimitValue
@@ -250,34 +188,19 @@ export function parseOpenClawBridgeCliArgs(
     };
   }
 
-  if (commandKey === "attachment.send") {
-    return {
-      kind: "attachment.send",
-      options: {
-        sessionFilePath,
-        filePath: requireValue(flags.file, "file"),
-        caption: flags.caption,
-        mimeType: flags["mime-type"]
-      }
-    };
-  }
-
-  throw new Error(`openclaw_bridge_unknown_command:${commandKey || "empty"}`);
+  throw new Error(`generic_bridge_unknown_command:${commandKey || "empty"}`);
 }
 
-export function formatOpenClawBridgeUsage(): string {
+export function formatGenericBridgeUsage(): string {
   return [
     "Usage:",
-    "  npm --workspace @ma/bridge-openclaw run dev -- session start --invite-file <invite.json> --agent-id <id>",
-    "  npm --workspace @ma/bridge-openclaw run dev -- session start --base-url <url> --token <token> --agent-id <id> --room-id <room>",
-    "  npm --workspace @ma/bridge-openclaw run dev -- message send --body <text>",
-    "  npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id <event-id>",
-    "  npm --workspace @ma/bridge-openclaw run dev -- events watch --after-event-id <event-id> --poll-ms <ms>",
-    "  npm --workspace @ma/bridge-openclaw run dev -- workspace snapshot --event-limit <n>",
-    "  npm --workspace @ma/bridge-openclaw run dev -- attachment send --file <path> --caption <text>",
-    "  npm --workspace @ma/bridge-openclaw run dev -- session stop",
+    "  npm --workspace @ma/bridge-generic run dev -- session start --invite-file <invite.json> --agent-id <id>",
+    "  npm --workspace @ma/bridge-generic run dev -- message send --body <text>",
+    "  npm --workspace @ma/bridge-generic run dev -- workspace snapshot --event-limit <n>",
+    "  npm --workspace @ma/bridge-generic run dev -- session stop",
     "",
     "Environment fallbacks:",
+    "  MA_BRIDGE_INVITE_FILE",
     "  MA_BRIDGE_BASE_URL",
     "  MA_BRIDGE_TOKEN",
     "  MA_BRIDGE_AGENT_ID",
@@ -285,8 +208,6 @@ export function formatOpenClawBridgeUsage(): string {
     "  MA_BRIDGE_ROOM_ID",
     "  MA_BRIDGE_CAPABILITIES",
     "  MA_BRIDGE_SESSION_FILE",
-    "  MA_BRIDGE_INVITE_FILE",
-    "  MA_BRIDGE_HEARTBEAT_MS",
-    "  MA_BRIDGE_POLL_MS"
+    "  MA_BRIDGE_HEARTBEAT_MS"
   ].join("\n");
 }
