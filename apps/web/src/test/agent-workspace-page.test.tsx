@@ -142,22 +142,66 @@ describe("AgentWorkspacePage", () => {
       ],
       nextCursor: "evt-2"
     });
+    vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
+      agent: {
+        id: "agent-codex-main",
+        displayName: "Codex",
+        capabilities: ["chat", "code"]
+      },
+      session: {
+        id: "session-1",
+        activeRoomIds: ["room-1"],
+        lastSeenAt: "2026-05-10T00:00:10.000Z",
+        expiresAt: "2026-05-10T00:02:10.000Z"
+      },
+      room: { id: "room-1" },
+      participants: [],
+      latestSummary: null,
+      workMemory: {
+        roomId: "room-1",
+        recentMessages: [],
+        activeParticipantIds: ["human-1", "agent-codex-main"],
+        todoItems: [],
+        blockerItems: [],
+        decisionItems: ["待审核协作决策"],
+        lastSummaryDraftId: null,
+        updatedAt: "2026-05-10T00:00:10.000Z"
+      },
+      sharedKnowledge: [
+        {
+          knowledgeId: "know-accepted-1",
+          spaceId: "space-default",
+          roomId: "room-1",
+          kind: "decision",
+          title: "审核后共享决策",
+          body: "人类已经接受该候选，Agent 工作台应看到共享层变化。",
+          keywords: ["review"],
+          sourceCandidateId: "cand-pending-1",
+          sourceEventIds: ["evt-4"],
+          createdAt: "2026-05-10T00:00:10.000Z",
+          updatedAt: "2026-05-10T00:00:10.000Z"
+        }
+      ],
+      memoryCandidates: [],
+      recentEvents: [],
+      nextCursor: "evt-4"
+    });
 
     vi.mocked(fetchBridgeWorkspaceEvents).mockResolvedValueOnce({
       items: [
         {
-          eventId: "evt-3",
-          kind: "message.created",
+          eventId: "evt-4",
+          kind: "memory.candidate.accepted",
           roomId: "room-1",
-          timestamp: "2026-05-10T00:00:05.000Z",
+          timestamp: "2026-05-10T00:00:10.000Z",
           payload: {
-            messageId: "msg-3",
-            speakerParticipantId: "agent-codex-main",
-            body: "收到，开始接续。"
+            messageId: "cand-pending-1",
+            speakerParticipantId: "human-1",
+            body: "候选已被人类接受。"
           }
         }
       ],
-      nextCursor: "evt-3"
+      nextCursor: "evt-4"
     });
 
     render(<App />);
@@ -197,7 +241,10 @@ describe("AgentWorkspacePage", () => {
       })
     );
 
-    expect(screen.getByText("收到，开始接续。")).toBeInTheDocument();
+    expect(fetchBridgeWorkspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("候选已被人类接受。")).toBeInTheDocument();
+    expect(await screen.findByText("审核后共享决策")).toBeInTheDocument();
+    expect(screen.getByText("人类已经接受该候选，Agent 工作台应看到共享层变化。")).toBeInTheDocument();
   });
 
   it("sends a bridge workspace message from the composer", async () => {

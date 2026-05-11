@@ -41,6 +41,12 @@ function appendEvents(current: MessageEventRecord[], incoming: MessageEventRecor
   return next;
 }
 
+function shouldRefreshSnapshotForEvents(events: MessageEventRecord[]): boolean {
+  return events.some(
+    (event) => event.kind === "memory.candidate.accepted" || event.kind === "memory.candidate.rejected"
+  );
+}
+
 function createWorkspaceConfig(input: {
   bridgeToken: string;
   agentId: string;
@@ -219,6 +225,12 @@ export function AgentWorkspacePage() {
 
         setEvents((current) => appendEvents(current, batch.items));
         setNextCursor(batch.nextCursor);
+        if (shouldRefreshSnapshotForEvents(batch.items)) {
+          const refreshedSnapshot = await fetchBridgeWorkspaceSnapshot(config);
+          if (!cancelled) {
+            setSnapshot(refreshedSnapshot);
+          }
+        }
         setStatusText(batch.items.length > 0 ? "收到新的房间事件。" : "监听中，暂无新事件。");
         setErrorText("");
       } catch {
