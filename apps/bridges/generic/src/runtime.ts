@@ -250,6 +250,10 @@ function persistEventCursor(sessionFilePath: string, lastEventId: string | undef
   });
 }
 
+function resolveRetryDelayMs(pollMs: number, failureCount: number): number {
+  return Math.min(pollMs * 2 ** Math.max(failureCount - 1, 0), 30_000);
+}
+
 async function defaultSleep(ms: number): Promise<void> {
   await new Promise((resolvePromise) => {
     setTimeout(resolvePromise, ms);
@@ -260,14 +264,23 @@ export async function watchGenericBridgeEvents(options: WatchEventsOptions): Pro
   const session = readGenericBridgeSessionFile(options.sessionFilePath);
   let afterEventId = options.afterEventId ?? session.lastEventId;
   const sleep = options.sleep ?? defaultSleep;
+  let failureCount = 0;
 
   while (!options.signal?.aborted) {
-    const batch = await pullGenericBridgeEvents({
-      client: options.client,
-      sessionFilePath: options.sessionFilePath,
-      afterEventId,
-      limit: options.limit
-    });
+    let batch: unknown;
+    try {
+      batch = await pullGenericBridgeEvents({
+        client: options.client,
+        sessionFilePath: options.sessionFilePath,
+        afterEventId,
+        limit: options.limit
+      });
+      failureCount = 0;
+    } catch {
+      failureCount += 1;
+      await sleep(resolveRetryDelayMs(options.pollMs, failureCount));
+      continue;
+    }
 
     if (hasBatchItems(batch)) {
       await options.onBatch?.(batch);

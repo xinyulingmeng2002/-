@@ -91,7 +91,7 @@ npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id evt_
 npm --workspace @ma/bridge-openclaw run dev -- events watch --after-event-id evt_123 --limit 20 --poll-ms 2000
 ```
 
-`events watch` 会复用 session 文件，持续调用 bridge egress events，并把每个非空批次输出为一行 JSON。它会把服务端返回的 `nextCursor` 持久化为 session 文件里的 `lastEventId`；下一次未显式传 `--after-event-id` 时，会默认从该位置继续监听。
+`events watch` 会复用 session 文件，持续调用 bridge egress events，并把每个非空批次输出为一行 JSON。它会把服务端返回的 `nextCursor` 持久化为 session 文件里的 `lastEventId`；下一次未显式传 `--after-event-id` 时，会默认从该位置继续监听。遇到短暂拉取失败时，adapter 不会推进 cursor，也不会直接退出，而是按 `pollMs -> pollMs*2 -> ...` 指数 backoff 重试，最大单次等待 30 秒。
 
 拉取房间工作快照：
 

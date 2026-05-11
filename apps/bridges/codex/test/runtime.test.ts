@@ -406,6 +406,7 @@ describe("codex bridge runtime", () => {
   it("watches room events with cursor advancement", async () => {
     const tempDir = createTempDir("ma-codex-bridge-");
     const sessionFilePath = join(tempDir, "codex-session.json");
+    const abortController = new AbortController();
     const batches: unknown[] = [];
     const client = {
       pullEvents: vi
@@ -414,10 +415,16 @@ describe("codex bridge runtime", () => {
           items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
           nextCursor: "evt-2"
         })
-        .mockImplementationOnce(() => {
-          throw new Error("stop");
+        .mockResolvedValueOnce({
+          items: [],
+          nextCursor: "evt-2"
         })
     };
+    const sleep = vi.fn().mockImplementation(async () => {
+      if (client.pullEvents.mock.calls.length >= 2) {
+        abortController.abort();
+      }
+    });
 
     try {
       const session = {
@@ -432,19 +439,18 @@ describe("codex bridge runtime", () => {
       };
       writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
 
-      await expect(
-        watchCodexBridgeEvents({
-          client: client as never,
-          sessionFilePath,
-          afterEventId: "evt-1",
-          limit: 20,
-          pollMs: 1,
-          onBatch(batch) {
-            batches.push(batch);
-          },
-          sleep: async () => undefined
-        })
-      ).rejects.toThrow("stop");
+      await watchCodexBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        afterEventId: "evt-1",
+        limit: 20,
+        pollMs: 1,
+        signal: abortController.signal,
+        onBatch(batch) {
+          batches.push(batch);
+        },
+        sleep
+      });
 
       expect(client.pullEvents).toHaveBeenNthCalledWith(1, {
         sessionId: "session-1",
@@ -519,6 +525,84 @@ describe("codex bridge runtime", () => {
       });
       const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
       expect(stored.lastEventId).toBe("evt-9");
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("keeps watching after transient pull failures with backoff", async () => {
+    const tempDir = createTempDir("ma-codex-bridge-");
+    const sessionFilePath = join(tempDir, "codex-session.json");
+    const abortController = new AbortController();
+    const batches: unknown[] = [];
+    const client = {
+      pullEvents: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("network down"))
+        .mockRejectedValueOnce(new Error("still down"))
+        .mockResolvedValueOnce({
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        })
+    };
+    const sleep = vi.fn().mockImplementation(async () => {
+      if (client.pullEvents.mock.calls.length >= 3) {
+        abortController.abort();
+      }
+    });
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        displayName: "Codex",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000,
+        lastEventId: "evt-1"
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      await watchCodexBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        limit: 20,
+        pollMs: 10,
+        signal: abortController.signal,
+        sleep,
+        onBatch(batch) {
+          batches.push(batch);
+        }
+      });
+
+      expect(client.pullEvents).toHaveBeenCalledTimes(3);
+      expect(client.pullEvents).toHaveBeenNthCalledWith(1, {
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        roomId: "room-1",
+        afterEventId: "evt-1",
+        limit: 20
+      });
+      expect(client.pullEvents).toHaveBeenNthCalledWith(3, {
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        roomId: "room-1",
+        afterEventId: "evt-1",
+        limit: 20
+      });
+      expect(sleep).toHaveBeenNthCalledWith(1, 10);
+      expect(sleep).toHaveBeenNthCalledWith(2, 20);
+      expect(sleep).toHaveBeenNthCalledWith(3, 10);
+      expect(batches).toEqual([
+        {
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        }
+      ]);
+      const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
+      expect(stored.lastEventId).toBe("evt-2");
     } finally {
       cleanupTempDir(tempDir);
     }

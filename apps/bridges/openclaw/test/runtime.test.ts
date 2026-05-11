@@ -546,6 +546,84 @@ describe("openclaw bridge runtime", () => {
     }
   });
 
+  it("keeps watching after transient pull failures with backoff", async () => {
+    const tempDir = createTempDir("ma-openclaw-bridge-");
+    const sessionFilePath = join(tempDir, "openclaw-session.json");
+    const abortController = new AbortController();
+    const batches: unknown[] = [];
+    const client = {
+      pullEvents: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("network down"))
+        .mockRejectedValueOnce(new Error("still down"))
+        .mockResolvedValueOnce({
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        })
+    };
+    const sleep = vi.fn().mockImplementation(async () => {
+      if (client.pullEvents.mock.calls.length >= 3) {
+        abortController.abort();
+      }
+    });
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        displayName: "OpenClaw",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000,
+        lastEventId: "evt-1"
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      await watchOpenClawBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        limit: 20,
+        pollMs: 10,
+        signal: abortController.signal,
+        sleep,
+        onBatch(batch) {
+          batches.push(batch);
+        }
+      });
+
+      expect(client.pullEvents).toHaveBeenCalledTimes(3);
+      expect(client.pullEvents).toHaveBeenNthCalledWith(1, {
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        roomId: "room-1",
+        afterEventId: "evt-1",
+        limit: 20
+      });
+      expect(client.pullEvents).toHaveBeenNthCalledWith(3, {
+        sessionId: "session-1",
+        agentId: "agent-openclaw-main",
+        roomId: "room-1",
+        afterEventId: "evt-1",
+        limit: 20
+      });
+      expect(sleep).toHaveBeenNthCalledWith(1, 10);
+      expect(sleep).toHaveBeenNthCalledWith(2, 20);
+      expect(sleep).toHaveBeenNthCalledWith(3, 10);
+      expect(batches).toEqual([
+        {
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        }
+      ]);
+      const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
+      expect(stored.lastEventId).toBe("evt-2");
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("keeps the session file when live shutdown disconnect fails", async () => {
     const tempDir = createTempDir("ma-openclaw-bridge-");
     const sessionFilePath = join(tempDir, "openclaw-session.json");
