@@ -257,6 +257,10 @@ describe("AgentWorkspacePage", () => {
     expect(screen.getByText("agent-codex-main · agent · codex · chat, code")).toBeInTheDocument();
     expect(screen.getByText("OpenClaw")).toBeInTheDocument();
     expect(screen.getByText("agent-openclaw-main · agent · openclaw · chat, research")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "对 房主 说" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "对 OpenClaw 说" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "对 OpenClaw 说" }));
+    expect(screen.getByLabelText("消息内容")).toHaveValue("@OpenClaw ");
     expect(screen.getByText("提到我的消息")).toBeInTheDocument();
     expect(screen.getAllByText("@Codex 这条消息需要你回应。").length).toBeGreaterThan(0);
     expect(screen.getByText("回复我的消息")).toBeInTheDocument();

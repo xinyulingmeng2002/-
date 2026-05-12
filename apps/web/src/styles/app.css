@@ -799,6 +799,25 @@ body {
   margin-top: 18px;
 }
 
+.workspace-mention-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #52617f;
+  font-size: 13px;
+}
+
+.workspace-mention-row .mention-button {
+  padding: 7px 10px;
+  border: 1px solid rgba(75, 103, 173, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1d407f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .workspace-composer label {
   display: flex;
   flex-direction: column;

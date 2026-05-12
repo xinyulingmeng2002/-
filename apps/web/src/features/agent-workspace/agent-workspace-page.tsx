@@ -119,6 +119,15 @@ function createWorkspaceReplyDraft(event: MessageEventRecord): string {
   return `> 回复 ${speaker}: ${excerpt}\n\n`;
 }
 
+function insertWorkspaceMention(current: string, displayName: string): string {
+  const mention = `@${displayName} `;
+  if (current.startsWith(mention)) {
+    return current;
+  }
+
+  return current.trim().length > 0 ? `${mention}${current}` : mention;
+}
+
 function formatParticipantLine(participant: BridgeWorkspaceParticipant): string {
   return [
     participant.id,
@@ -146,6 +155,8 @@ export function AgentWorkspacePage() {
   const [errorText, setErrorText] = useState("");
   const mentionedEvents = snapshot ? events.filter((event) => isMentionedForAgent(event, snapshot)) : [];
   const repliedEvents = snapshot ? events.filter((event) => isReplyForAgent(event, snapshot)) : [];
+  const mentionTargets =
+    snapshot?.participants.filter((participant) => participant.id !== snapshot.agent.id) ?? [];
 
   async function connectWorkspace() {
     const config = createWorkspaceConfig({
@@ -400,6 +411,23 @@ export function AgentWorkspacePage() {
           </div>
 
           <div className="workspace-composer">
+            {mentionTargets.length > 0 ? (
+              <div className="workspace-mention-row" aria-label="指名发言">
+                <span>指名发言</span>
+                {mentionTargets.map((participant) => (
+                  <button
+                    key={participant.id}
+                    type="button"
+                    className="mention-button"
+                    onClick={() =>
+                      setMessageBody((current) => insertWorkspaceMention(current, participant.displayName))
+                    }
+                  >
+                    对 {participant.displayName} 说
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <label>
               消息内容
               <textarea
