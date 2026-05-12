@@ -96,7 +96,8 @@ function toParticipantViewModel(participant: PresenceParticipant): ParticipantVi
   return {
     id: participant.id,
     displayName: participant.displayName,
-    type: participant.type === "human" ? "human" : "agent"
+    type: participant.type === "human" ? "human" : "agent",
+    status: "online"
   };
 }
 
@@ -131,6 +132,35 @@ function getParticipantDisplayName(participantId: string): string {
   }
 
   return participantId;
+}
+
+function resolveParticipantStatus(
+  participantId: string,
+  speakerParticipantId: string,
+  realtimeParticipants: ParticipantViewModel[],
+  bridgeSessions: BridgeSessionRecord[],
+  activeRoomId: string
+): ParticipantViewModel["status"] {
+  if (
+    participantId === speakerParticipantId ||
+    realtimeParticipants.some((participant) => participant.id === participantId)
+  ) {
+    return "online";
+  }
+
+  if (!participantId.startsWith("agent-")) {
+    return "not_joined";
+  }
+
+  const session = bridgeSessions.find(
+    (item) => item.agentId === participantId && item.activeRoomIds.includes(activeRoomId)
+  );
+
+  if (!session) {
+    return "not_joined";
+  }
+
+  return session.status === "connected" ? "online" : "offline";
 }
 
 function createReplyDraft(message: TimelineMessage): string {
@@ -221,7 +251,14 @@ function buildParticipants(
           ? "agent"
           : record?.type === "human"
             ? "human"
-            : inferParticipantType(participantId)
+            : inferParticipantType(participantId),
+      status: resolveParticipantStatus(
+        participantId,
+        speakerParticipantId,
+        realtimeParticipants,
+        bridgeSessions,
+        activeRoomId
+      )
     });
   }
 

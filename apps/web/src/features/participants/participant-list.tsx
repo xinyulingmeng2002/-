@@ -2,6 +2,7 @@ export type ParticipantViewModel = {
   id: string;
   displayName: string;
   type: "human" | "agent";
+  status: "online" | "offline" | "not_joined";
 };
 
 type ParticipantListProps = {
@@ -12,6 +13,11 @@ type ParticipantListProps = {
 export function ParticipantList({ participants, onMentionParticipant }: ParticipantListProps) {
   const humans = participants.filter((participant) => participant.type === "human");
   const agents = participants.filter((participant) => participant.type === "agent");
+  const statusLabel = {
+    online: "在线",
+    offline: "离线",
+    not_joined: "未接入"
+  } satisfies Record<ParticipantViewModel["status"], string>;
 
   return (
     <div className="participant-groups">
@@ -23,6 +29,9 @@ export function ParticipantList({ participants, onMentionParticipant }: Particip
             <div>
               <strong>{participant.displayName}</strong>
               <span>{participant.id}</span>
+              <span className={`participant-card__status participant-card__status--${participant.status}`}>
+                成员状态：{statusLabel[participant.status]}
+              </span>
             </div>
             {onMentionParticipant ? (
               <button
@@ -46,6 +55,9 @@ export function ParticipantList({ participants, onMentionParticipant }: Particip
             <div>
               <strong>{participant.displayName}</strong>
               <span>{participant.id}</span>
+              <span className={`participant-card__status participant-card__status--${participant.status}`}>
+                成员状态：{statusLabel[participant.status]}
+              </span>
             </div>
             {onMentionParticipant ? (
               <button

@@ -411,6 +411,22 @@ body {
   font-size: 12px;
 }
 
+.participant-card__status {
+  font-weight: 800;
+}
+
+.participant-card__status--online {
+  color: #1f7a4d;
+}
+
+.participant-card__status--offline {
+  color: #9b4a22;
+}
+
+.participant-card__status--not_joined {
+  color: #61708c;
+}
+
 .participant-card__action {
   border: 1px solid rgba(75, 103, 173, 0.18);
   border-radius: 999px;

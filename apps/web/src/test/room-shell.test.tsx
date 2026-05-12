@@ -32,7 +32,7 @@ describe("RoomShell", () => {
           id: "room-1",
           spaceId: "space-default",
           name: "主协作间",
-          participantIds: []
+          participantIds: ["agent-offline"]
         }
       ]),
       createRoom: vi.fn(),
@@ -58,6 +58,15 @@ describe("RoomShell", () => {
           capabilities: ["chat"],
           createdAt: "2026-04-15T12:00:00.000Z",
           lastSeenAt: "2026-04-15T12:00:00.000Z"
+        },
+        {
+          id: "agent-offline",
+          type: "agent",
+          displayName: "离线助手",
+          bridgeKind: "generic",
+          capabilities: ["chat"],
+          createdAt: "2026-04-15T11:00:00.000Z",
+          lastSeenAt: "2026-04-15T11:30:00.000Z"
         }
       ]),
       listBridgeTokens: vi.fn().mockResolvedValue([]),
@@ -73,6 +82,16 @@ describe("RoomShell", () => {
           connectedAt: "2026-04-15T12:00:00.000Z",
           lastSeenAt: "2026-04-15T12:00:00.000Z",
           expiresAt: "2026-04-15T12:02:00.000Z"
+        },
+        {
+          id: "session-offline",
+          tokenId: "token-offline",
+          agentId: "agent-offline",
+          status: "disconnected",
+          activeRoomIds: ["room-1"],
+          connectedAt: "2026-04-15T11:00:00.000Z",
+          lastSeenAt: "2026-04-15T11:30:00.000Z",
+          expiresAt: "2026-04-15T11:32:00.000Z"
         }
       ]),
       listMemoryCandidates: vi.fn().mockResolvedValue([
@@ -226,6 +245,9 @@ describe("RoomShell", () => {
     });
 
     expect((await screen.findAllByText("实时助手")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("成员状态：在线")).length).toBeGreaterThan(0);
+    expect(await screen.findByText("成员状态：离线")).toBeInTheDocument();
+    expect(await screen.findByText("成员状态：未接入")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "从成员列表对 实时助手 说" }));
     expect(screen.getByPlaceholderText("输入你要同步到当前房间的内容")).toHaveValue("@实时助手 ");
     expect(await screen.findByText("桥接会话")).toBeInTheDocument();
