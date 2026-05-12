@@ -193,6 +193,12 @@ describe("AgentPanel", () => {
 
     expect(screen.getAllByText("Codex").length).toBeGreaterThan(0);
     expect(screen.getAllByText("OpenClaw").length).toBeGreaterThan(0);
+    expect(screen.getByText("房间智能体")).toBeInTheDocument();
+    expect(screen.getByText("房间里的 Agent 是群成员，不只是 bridge session。")).toBeInTheDocument();
+    expect(screen.getByText("codex · chat")).toBeInTheDocument();
+    expect(screen.getByText("openclaw · chat")).toBeInTheDocument();
+    expect(screen.getByText("在线 · 最后活跃 2026-04-15T12:00:00.000Z")).toBeInTheDocument();
+    expect(screen.getByText("离线 · 最后活跃 2026-04-15T12:03:00.000Z")).toBeInTheDocument();
     expect(screen.getByText("offline")).toBeInTheDocument();
     expect(screen.getByText("heartbeat_expired")).toBeInTheDocument();
     expect(screen.getByText("最后心跳 120 秒前")).toBeInTheDocument();

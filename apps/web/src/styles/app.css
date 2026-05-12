@@ -366,6 +366,7 @@ body {
 }
 
 .agent-status-list,
+.agent-member-list,
 .token-list,
 .candidate-list,
 .knowledge-list {
@@ -374,6 +375,7 @@ body {
   gap: 10px;
 }
 
+.agent-member-card,
 .agent-status-card,
 .token-card,
 .candidate-card,
@@ -383,6 +385,18 @@ body {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(75, 103, 173, 0.12);
+}
+
+.agent-member-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-member-card p {
+  margin: 6px 0 0;
+  color: #5f6d89;
+  line-height: 1.5;
 }
 
 .agent-status-card {

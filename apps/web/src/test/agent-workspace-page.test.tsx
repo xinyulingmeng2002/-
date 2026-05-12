@@ -67,12 +67,28 @@ describe("AgentWorkspacePage", () => {
       room: { id: "room-1" },
       participants: [
         {
+          id: "human-1",
+          type: "human",
+          displayName: "房主",
+          bridgeKind: null,
+          capabilities: ["chat"],
+          lastSeenAt: "2026-05-10T00:00:00.000Z"
+        },
+        {
           id: "agent-codex-main",
           type: "agent",
           displayName: "Codex",
           bridgeKind: "codex",
           capabilities: ["chat", "code"],
           lastSeenAt: "2026-05-10T00:00:00.000Z"
+        },
+        {
+          id: "agent-openclaw-main",
+          type: "agent",
+          displayName: "OpenClaw",
+          bridgeKind: "openclaw",
+          capabilities: ["chat", "research"],
+          lastSeenAt: "2026-05-10T00:00:01.000Z"
         }
       ],
       latestSummary: {
@@ -223,7 +239,13 @@ describe("AgentWorkspacePage", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText("Codex")).toBeInTheDocument();
+    expect(screen.getAllByText("Codex").length).toBeGreaterThan(0);
+    expect(screen.getByText("房间成员")).toBeInTheDocument();
+    expect(screen.getByText("房主")).toBeInTheDocument();
+    expect(screen.getByText("human-1 · human · chat")).toBeInTheDocument();
+    expect(screen.getByText("agent-codex-main · agent · codex · chat, code")).toBeInTheDocument();
+    expect(screen.getByText("OpenClaw")).toBeInTheDocument();
+    expect(screen.getByText("agent-openclaw-main · agent · openclaw · chat, research")).toBeInTheDocument();
     expect(screen.getByText("统一工作台")).toBeInTheDocument();
     expect(screen.getByText("待审核候选")).toBeInTheDocument();
     expect(screen.getByText("待审核协作决策")).toBeInTheDocument();

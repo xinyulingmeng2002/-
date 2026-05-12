@@ -9,6 +9,7 @@ import {
   sendBridgeWorkspaceMessage,
   uploadBridgeWorkspaceFile,
   type BridgeWorkspaceEventBatch,
+  type BridgeWorkspaceParticipant,
   type BridgeWorkspaceRequest,
   type BridgeWorkspaceSnapshot
 } from "./bridge-workspace-client";
@@ -80,6 +81,17 @@ function renderEvent(event: MessageEventRecord) {
       <span>{event.eventId}</span>
     </article>
   );
+}
+
+function formatParticipantLine(participant: BridgeWorkspaceParticipant): string {
+  return [
+    participant.id,
+    participant.type,
+    participant.bridgeKind,
+    participant.capabilities.join(", ") || null
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export function AgentWorkspacePage() {
@@ -396,6 +408,18 @@ export function AgentWorkspacePage() {
               ) : null}
 
               <div className="workspace-columns">
+                <article className="workspace-mini-card">
+                  <h3>房间成员</h3>
+                  {snapshot.participants.length === 0 ? <p>当前快照暂无房间成员。</p> : null}
+                  {snapshot.participants.map((participant) => (
+                    <div key={participant.id} className="workspace-knowledge-row">
+                      <strong>{participant.displayName}</strong>
+                      <p>{formatParticipantLine(participant)}</p>
+                      <small>最后活跃 {participant.lastSeenAt}</small>
+                    </div>
+                  ))}
+                </article>
+
                 <article className="workspace-mini-card">
                   <h3>当前工作记忆</h3>
                   <strong>待办</strong>

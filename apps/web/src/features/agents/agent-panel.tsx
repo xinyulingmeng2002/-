@@ -97,6 +97,28 @@ function formatBridgeDiagnostics(session: BridgeSessionRecord): string[] {
   return lines;
 }
 
+function resolveAgentPresence(
+  sessions: BridgeSessionRecord[],
+  activeRoomId: string,
+  agentId: string
+): "在线" | "离线" | "未接入" {
+  const session = sessions.find(
+    (item) => item.agentId === agentId && item.activeRoomIds.includes(activeRoomId)
+  );
+
+  if (!session) {
+    return "未接入";
+  }
+
+  return session.status === "connected" ? "在线" : "离线";
+}
+
+function formatAgentCapabilities(participant: ParticipantRecord): string {
+  const bridgeKind = participant.bridgeKind ?? "local";
+  const capabilities = participant.capabilities.join(", ") || "暂无能力标签";
+  return `${bridgeKind} · ${capabilities}`;
+}
+
 export function AgentPanel({
   activeRoomId,
   participants,
@@ -122,9 +144,44 @@ export function AgentPanel({
 
     return right.lastSeenAt.localeCompare(left.lastSeenAt);
   });
+  const roomAgents = participants
+    .filter((participant) => participant.type === "agent")
+    .sort((left, right) => left.displayName.localeCompare(right.displayName));
 
   return (
     <div className="agent-panel">
+      <section className="agent-section">
+        <div className="agent-section__header">
+          <h3>房间智能体</h3>
+          <p>房间里的 Agent 是群成员，不只是 bridge session。</p>
+        </div>
+        <div className="agent-member-list">
+          {roomAgents.length === 0 ? <p className="empty-state">当前房间暂无智能体成员。</p> : null}
+          {roomAgents.map((participant) => {
+            const presence = resolveAgentPresence(sessions, activeRoomId, participant.id);
+
+            return (
+              <article key={participant.id} className="agent-member-card">
+                <div>
+                  <strong>{participant.displayName}</strong>
+                  <p>{participant.id}</p>
+                  <p>{formatAgentCapabilities(participant)}</p>
+                </div>
+                <span
+                  className={
+                    presence === "在线"
+                      ? "status-pill status-pill--on"
+                      : "status-pill status-pill--off"
+                  }
+                >
+                  {presence} · 最后活跃 {participant.lastSeenAt}
+                </span>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="agent-section">
         <div className="agent-section__header">
           <h3>桥接会话</h3>
