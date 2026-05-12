@@ -250,6 +250,12 @@ describe("RoomShell", () => {
     expect(await screen.findByText("成员状态：未接入")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "从成员列表对 实时助手 说" }));
     expect(screen.getByPlaceholderText("输入你要同步到当前房间的内容")).toHaveValue("@实时助手 ");
+    fireEvent.click(screen.getByRole("button", { name: "从成员列表打开 实时助手 工作台" }));
+    expect(onOpenAgentWorkspace).toHaveBeenCalledWith({
+      roomId: "room-1",
+      agentId: "agent-realtime",
+      sessionId: "session-1"
+    });
     expect(await screen.findByText("桥接会话")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "打开 实时助手 工作台" }));
     expect(onOpenAgentWorkspace).toHaveBeenCalledWith({

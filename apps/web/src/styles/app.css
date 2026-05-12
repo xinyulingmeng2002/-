@@ -427,6 +427,12 @@ body {
   color: #61708c;
 }
 
+.participant-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .participant-card__action {
   border: 1px solid rgba(75, 103, 173, 0.18);
   border-radius: 999px;
@@ -437,6 +443,10 @@ body {
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.participant-card__action--workspace {
+  background: rgba(29, 64, 127, 0.1);
 }
 
 .agent-panel {

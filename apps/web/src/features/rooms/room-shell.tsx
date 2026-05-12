@@ -163,6 +163,19 @@ function resolveParticipantStatus(
   return session.status === "connected" ? "online" : "offline";
 }
 
+function resolveWorkspaceSessionId(
+  participantId: string,
+  bridgeSessions: BridgeSessionRecord[],
+  activeRoomId: string
+): string | undefined {
+  return bridgeSessions.find(
+    (item) =>
+      item.agentId === participantId &&
+      item.status === "connected" &&
+      item.activeRoomIds.includes(activeRoomId)
+  )?.id;
+}
+
 function createReplyDraft(message: TimelineMessage): string {
   const textBody = message.body.trim().replace(/\s+/g, " ");
   const attachmentNames = message.attachments?.map((attachment) => attachment.name).join(", ");
@@ -258,7 +271,8 @@ function buildParticipants(
         realtimeParticipants,
         bridgeSessions,
         activeRoomId
-      )
+      ),
+      workspaceSessionId: resolveWorkspaceSessionId(participantId, bridgeSessions, activeRoomId)
     });
   }
 
@@ -562,6 +576,18 @@ export function RoomShell({
     setComposerDraft(createMentionDraft(participant));
   }
 
+  function handleOpenParticipantWorkspace(participant: ParticipantViewModel) {
+    if (!activeRoomId || !participant.workspaceSessionId || !onOpenAgentWorkspace) {
+      return;
+    }
+
+    onOpenAgentWorkspace({
+      roomId: activeRoomId,
+      agentId: participant.id,
+      sessionId: participant.workspaceSessionId
+    });
+  }
+
   async function handleUpload(response: UploadAttachmentResponse) {
     if (!activeRoomId || activeRoomId === "room-offline") {
       return;
@@ -684,7 +710,11 @@ export function RoomShell({
         </div>
         <div className="panel-body panel-body--scroll panel-body--stack">
           {panelErrorText ? <div className="status-banner">{panelErrorText}</div> : null}
-          <ParticipantList participants={participants} onMentionParticipant={handleMentionParticipant} />
+          <ParticipantList
+            participants={participants}
+            onMentionParticipant={handleMentionParticipant}
+            onOpenAgentWorkspace={onOpenAgentWorkspace ? handleOpenParticipantWorkspace : undefined}
+          />
           <AgentPanel
             activeRoomId={activeRoomId}
             participants={directoryParticipants}
