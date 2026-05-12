@@ -8,11 +8,17 @@ export type MessageComposerSubmit = {
   body: string;
 };
 
+export type MessageComposerMentionTarget = {
+  id: string;
+  displayName: string;
+};
+
 type MessageComposerProps = {
   speakerParticipantId: string;
   onSend: (payload: MessageComposerSubmit) => void | Promise<void>;
   onUpload?: (response: UploadAttachmentResponse) => void | Promise<void>;
   uploadFile?: (file: File) => Promise<UploadAttachmentResponse>;
+  mentionTargets?: MessageComposerMentionTarget[];
   disabled?: boolean;
 };
 
@@ -21,6 +27,7 @@ export function MessageComposer({
   onSend,
   onUpload,
   uploadFile,
+  mentionTargets = [],
   disabled = false
 }: MessageComposerProps) {
   const [body, setBody] = useState("");
@@ -41,11 +48,38 @@ export function MessageComposer({
     setBody("");
   }
 
+  function insertMention(target: MessageComposerMentionTarget) {
+    setBody((current) => {
+      const mention = `@${target.displayName} `;
+      if (current.startsWith(mention)) {
+        return current;
+      }
+
+      return current.trim().length > 0 ? `${mention}${current}` : mention;
+    });
+  }
+
   return (
     <form className="composer" onSubmit={handleSubmit}>
       <label className="composer__label" htmlFor={textareaId}>
         当前说话者：{speakerParticipantId}
       </label>
+      {mentionTargets.length > 0 ? (
+        <div className="composer__mentions" aria-label="指名发言">
+          <span>指名发言</span>
+          {mentionTargets.map((target) => (
+            <button
+              key={target.id}
+              type="button"
+              className="mention-button"
+              disabled={disabled}
+              onClick={() => insertMention(target)}
+            >
+              对 {target.displayName} 说
+            </button>
+          ))}
+        </div>
+      ) : null}
       <textarea
         id={textareaId}
         className="composer__input"

@@ -37,7 +37,17 @@ describe("RoomShell", () => {
       ]),
       createRoom: vi.fn(),
       listMessages: vi.fn().mockResolvedValue([]),
-      createMessage: vi.fn(),
+      createMessage: vi.fn().mockResolvedValue({
+        eventId: "evt-human-mention",
+        kind: "message.created",
+        roomId: "room-1",
+        timestamp: "2026-04-15T12:02:00.000Z",
+        payload: {
+          messageId: "msg-human-mention",
+          speakerParticipantId: "human-1",
+          body: "@实时助手 你怎么看这个方向？"
+        }
+      }),
       uploadFile: vi.fn(),
       listParticipants: vi.fn().mockResolvedValue([
         {
@@ -259,6 +269,24 @@ describe("RoomShell", () => {
     expect(await screen.findByText("私有记忆状态")).toBeInTheDocument();
     expect(await screen.findByText("agent-codex")).toBeInTheDocument();
     expect(screen.queryByText("This should stay in codex private scope.")).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "对 实时助手 说" }));
+      fireEvent.change(screen.getByPlaceholderText("输入你要同步到当前房间的内容"), {
+        target: {
+          value: "@实时助手 你怎么看这个方向？"
+        }
+      });
+      fireEvent.click(screen.getByRole("button", { name: "发送" }));
+    });
+
+    await waitFor(() => {
+      expect(apiClient.createMessage).toHaveBeenCalledWith({
+        roomId: "room-1",
+        speakerParticipantId: "human-1",
+        body: "@实时助手 你怎么看这个方向？"
+      });
+    });
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "提交为共享候选" }));

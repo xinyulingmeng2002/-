@@ -21,4 +21,33 @@ describe("MessageComposer", () => {
       })
     );
   });
+
+  it("lets the human address an agent by inserting a visible mention", async () => {
+    const onSend = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <MessageComposer
+        speakerParticipantId="human-1"
+        onSend={onSend}
+        mentionTargets={[
+          {
+            id: "agent-codex",
+            displayName: "Codex"
+          }
+        ]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "对 Codex 说" }));
+    await user.type(screen.getByRole("textbox"), "你怎么看这个方案？");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        speakerParticipantId: "human-1",
+        body: "@Codex 你怎么看这个方案？"
+      })
+    );
+  });
 });

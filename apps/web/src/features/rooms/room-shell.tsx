@@ -437,6 +437,12 @@ export function RoomShell({
     activeRoomId
   );
   const latestSummary = roomSummaries.at(-1) ?? null;
+  const mentionTargets = participants
+    .filter((participant) => participant.type === "agent" && participant.id !== "system")
+    .map((participant) => ({
+      id: participant.id,
+      displayName: participant.displayName
+    }));
 
   async function refreshAgentPanel(roomId = activeRoomId) {
     if (!roomId || roomId === "room-offline") {
@@ -589,6 +595,7 @@ export function RoomShell({
             onSend={handleSend}
             onUpload={handleUpload}
             uploadFile={(file) => apiClient.uploadFile(file)}
+            mentionTargets={mentionTargets}
             disabled={!activeRoomId}
           />
         </div>
