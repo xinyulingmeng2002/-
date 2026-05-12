@@ -227,6 +227,12 @@ describe("AgentPanel", () => {
     expect(screen.getByText(/复制以下 JSON/)).toBeInTheDocument();
     expect(screen.getByText(/multi-agent-room-invite/)).toBeInTheDocument();
     expect(screen.getByText(/secret-token/)).toBeInTheDocument();
+    expect(screen.getByText("实战接入步骤")).toBeInTheDocument();
+    expect(screen.getByText(/保存为 invite\.json/)).toBeInTheDocument();
+    expect(screen.getByText(/启动 adapter/)).toBeInTheDocument();
+    expect(screen.getAllByText(/events watch/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/查看桥接会话诊断/)).toBeInTheDocument();
+    expect(screen.getAllByText(/session stop/).length).toBeGreaterThan(0);
     expect(screen.getByText("候选审核")).toBeInTheDocument();
     expect(screen.getByText("补 rollout checklist")).toBeInTheDocument();
     expect(screen.getByText("共享知识")).toBeInTheDocument();

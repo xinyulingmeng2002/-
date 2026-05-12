@@ -42,6 +42,8 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 当前已经具备 Agent 邀请钥匙、bridge token、agent session、房间绑定、消息入口、附件入口、事件拉取、房间工作快照与 adapter 轮询监听骨架。
 
+房主从创建钥匙到启动 adapter、持续监听、查看诊断和停止/撤销的完整实战步骤见：`docs/2026-05-12-多智能体协同-外部Agent实战接入Runbook.md`。
+
 推荐流程：
 
 1. 在前端右侧 `接入令牌` 面板创建 Agent 邀请钥匙，或直接调用 `POST /api/bridge-tokens`

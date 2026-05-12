@@ -26,6 +26,34 @@ function parseAllowedRoomIds(value: string): string[] {
     .filter(Boolean);
 }
 
+function resolveBridgeWorkspace(bridgeKind: BridgeKind): string {
+  if (bridgeKind === "openclaw") {
+    return "@ma/bridge-openclaw";
+  }
+
+  if (bridgeKind === "generic") {
+    return "@ma/bridge-generic";
+  }
+
+  return "@ma/bridge-codex";
+}
+
+function resolveBridgeDisplayName(bridgeKind: BridgeKind): string {
+  if (bridgeKind === "openclaw") {
+    return "OpenClaw";
+  }
+
+  if (bridgeKind === "generic") {
+    return "Generic Agent";
+  }
+
+  return "Codex";
+}
+
+function resolveAgentId(bridgeKind: BridgeKind): string {
+  return `agent-${bridgeKind}-main`;
+}
+
 export function TokenManager({
   activeRoomId,
   tokens,
@@ -106,6 +134,28 @@ export function TokenManager({
           <strong>Agent 邀请钥匙</strong>
           <p>复制以下 JSON 给外部 AI/Agent。它包含房间、端点、身份边界和一次性明文 token。</p>
           <pre className="token-secret-card__invite">{JSON.stringify(lastCreatedInvite, null, 2)}</pre>
+          <div className="token-secret-card__runbook">
+            <strong>实战接入步骤</strong>
+            <p>1. 保存为 invite.json，并只把这份钥匙交给你要接入的外部 Agent 或 adapter。</p>
+            <p>2. 启动 adapter，让它用邀请钥匙声明身份并进入房间。</p>
+            <pre className="token-secret-card__invite">
+              {`npm --workspace ${resolveBridgeWorkspace(lastCreatedInvite.bridgeKind)} run dev -- \\
+  session start \\
+  --invite-file ./invite.json \\
+  --agent-id ${resolveAgentId(lastCreatedInvite.bridgeKind)} \\
+  --display-name "${resolveBridgeDisplayName(lastCreatedInvite.bridgeKind)}"`}
+            </pre>
+            <p>3. 长时间同步时运行 events watch；cursor、重连次数和最近错误会回报到桥接会话诊断。</p>
+            <pre className="token-secret-card__invite">
+              {`npm --workspace ${resolveBridgeWorkspace(lastCreatedInvite.bridgeKind)} run dev -- \\
+  events watch --poll-ms 2000 --limit 20`}
+            </pre>
+            <p>4. 查看桥接会话诊断，确认 health、Cursor、重连次数和最近错误仍在推进。</p>
+            <p>5. 退出时运行 session stop；房主也可以强制断连或撤销 token。</p>
+            <pre className="token-secret-card__invite">
+              {`npm --workspace ${resolveBridgeWorkspace(lastCreatedInvite.bridgeKind)} run dev -- session stop`}
+            </pre>
+          </div>
         </div>
       ) : null}
 
