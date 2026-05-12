@@ -85,7 +85,13 @@ describe("bridge client", () => {
     });
     const heartbeat = await client.heartbeat({
       sessionId: "session-1",
-      agentId: "agent-codex"
+      agentId: "agent-codex",
+      diagnostics: {
+        lastEventId: "evt-10",
+        reconnectCount: 2,
+        consecutiveFailures: 1,
+        lastError: "bridge_request_failed:503"
+      }
     });
     const disconnected = await client.disconnect({
       sessionId: "session-1",
@@ -148,7 +154,13 @@ describe("bridge client", () => {
         },
         body: JSON.stringify({
           sessionId: "session-1",
-          agentId: "agent-codex"
+          agentId: "agent-codex",
+          diagnostics: {
+            lastEventId: "evt-10",
+            reconnectCount: 2,
+            consecutiveFailures: 1,
+            lastError: "bridge_request_failed:503"
+          }
         })
       })
     );

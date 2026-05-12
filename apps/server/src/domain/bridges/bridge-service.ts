@@ -8,7 +8,11 @@ import type { SharedKnowledgeStore } from "../memory/shared-knowledge-store";
 import type { WorkMemoryStore } from "../memory/work-memory-store";
 import type { MemoryCandidateStore } from "../memory/memory-candidate-store";
 import type { ParticipantRecord, ParticipantStore } from "../participants/participant-store";
-import type { BridgeSessionRecord, BridgeSessionStore } from "./bridge-session-store";
+import type {
+  BridgeSessionDiagnostics,
+  BridgeSessionRecord,
+  BridgeSessionStore
+} from "./bridge-session-store";
 import type { BridgeKind, BridgeTokenStore } from "./bridge-token-store";
 
 const DEFAULT_SESSION_TTL_MS = 2 * 60 * 1000;
@@ -37,6 +41,14 @@ type SessionInput = {
   token: string;
   sessionId?: string;
   agentId: string;
+  diagnostics?: BridgeSessionDiagnosticsInput;
+};
+
+type BridgeSessionDiagnosticsInput = {
+  lastEventId?: string;
+  reconnectCount?: number;
+  consecutiveFailures?: number;
+  lastError?: string | null;
 };
 
 type JoinRoomInput = SessionInput & {
@@ -122,7 +134,8 @@ export class BridgeService {
     const updated = this.bridgeSessionStore.heartbeat({
       id: session.id,
       lastSeenAt: now,
-      expiresAt: this.expiresAt()
+      expiresAt: this.expiresAt(),
+      diagnostics: this.buildDiagnostics(input.diagnostics, now)
     });
 
     if (!updated) {
@@ -435,5 +448,24 @@ export class BridgeService {
 
   private expiresAt(): string {
     return new Date(this.now().getTime() + this.sessionTtlMs).toISOString();
+  }
+
+  private buildDiagnostics(
+    diagnostics: BridgeSessionDiagnosticsInput | undefined,
+    lastReportedAt: string
+  ): BridgeSessionDiagnostics | undefined {
+    if (!diagnostics) {
+      return undefined;
+    }
+
+    return {
+      ...(diagnostics.lastEventId !== undefined ? { lastEventId: diagnostics.lastEventId } : {}),
+      ...(diagnostics.reconnectCount !== undefined ? { reconnectCount: diagnostics.reconnectCount } : {}),
+      ...(diagnostics.consecutiveFailures !== undefined
+        ? { consecutiveFailures: diagnostics.consecutiveFailures }
+        : {}),
+      ...(diagnostics.lastError !== undefined ? { lastError: diagnostics.lastError } : {}),
+      lastReportedAt
+    };
   }
 }

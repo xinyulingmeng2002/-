@@ -68,6 +68,35 @@ function formatExpiresIn(seconds: number | null | undefined): string {
   return seconds >= 0 ? `TTL 剩余 ${seconds} 秒` : `TTL 已过期 ${Math.abs(seconds)} 秒`;
 }
 
+function formatBridgeDiagnostics(session: BridgeSessionRecord): string[] {
+  if (!session.diagnostics) {
+    return [];
+  }
+
+  const lines: string[] = [];
+
+  if (session.diagnostics.lastEventId) {
+    lines.push(`Cursor ${session.diagnostics.lastEventId}`);
+  }
+
+  if (
+    session.diagnostics.reconnectCount !== undefined ||
+    session.diagnostics.consecutiveFailures !== undefined
+  ) {
+    lines.push(
+      `重连 ${session.diagnostics.reconnectCount ?? 0} 次 · 连续失败 ${
+        session.diagnostics.consecutiveFailures ?? 0
+      } 次`
+    );
+  }
+
+  if (session.diagnostics.lastError) {
+    lines.push(`最近错误 ${session.diagnostics.lastError}`);
+  }
+
+  return lines;
+}
+
 export function AgentPanel({
   activeRoomId,
   participants,
@@ -110,6 +139,9 @@ export function AgentPanel({
                 <p>{session.agentId}</p>
                 <p>{formatSecondsAgo(session.health?.lastSeenSecondsAgo)}</p>
                 <p>{formatExpiresIn(session.health?.expiresInSeconds)}</p>
+                {formatBridgeDiagnostics(session).map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
               </div>
               <div className="agent-status-card__meta">
                 <span

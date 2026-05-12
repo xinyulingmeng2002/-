@@ -11,6 +11,9 @@ export type GenericBridgeSessionRecord = {
   capabilities: string[];
   heartbeatMs: number;
   lastEventId?: string;
+  reconnectCount?: number;
+  consecutiveFailures?: number;
+  lastError?: string | null;
 };
 
 export function readGenericBridgeSessionFile(filePath: string): GenericBridgeSessionRecord {

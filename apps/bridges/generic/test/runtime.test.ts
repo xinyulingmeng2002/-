@@ -78,6 +78,66 @@ describe("generic bridge runtime", () => {
     }
   });
 
+  it("reports persisted cursor and adapter diagnostics on heartbeat", async () => {
+    const tempDir = createTempDir();
+    const sessionFilePath = join(tempDir, "generic-session.json");
+    let intervalCallback: (() => void) | undefined;
+    const client = {
+      connect: vi.fn().mockResolvedValue({ session: { id: "session-1" } }),
+      joinRoom: vi.fn().mockResolvedValue({ id: "session-1", activeRoomIds: ["room-1"] }),
+      heartbeat: vi.fn(),
+      disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" })
+    };
+
+    try {
+      const handle = await runGenericBridgeSession({
+        client: client as never,
+        baseUrl: "http://127.0.0.1:5173",
+        token: "invite-token",
+        agentId: "agent-generic-main",
+        displayName: "Generic Agent",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        sessionFilePath,
+        heartbeatMs: 10_000,
+        setIntervalFn: ((callback: () => void) => {
+          intervalCallback = callback;
+          return 1 as never;
+        }) as never,
+        clearIntervalFn: vi.fn() as never
+      });
+
+      writeFileSync(
+        sessionFilePath,
+        JSON.stringify({
+          ...JSON.parse(readFileSync(sessionFilePath, "utf8")),
+          lastEventId: "evt-10",
+          reconnectCount: 2,
+          consecutiveFailures: 1,
+          lastError: "bridge_request_failed:503"
+        }),
+        "utf8"
+      );
+
+      intervalCallback?.();
+
+      expect(client.heartbeat).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        agentId: "agent-generic-main",
+        diagnostics: {
+          lastEventId: "evt-10",
+          reconnectCount: 2,
+          consecutiveFailures: 1,
+          lastError: "bridge_request_failed:503"
+        }
+      });
+
+      await handle.shutdown();
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("sends a message through the persisted generic session", async () => {
     const tempDir = createTempDir();
     const sessionFilePath = join(tempDir, "generic-session.json");

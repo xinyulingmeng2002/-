@@ -62,7 +62,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 `POST /api/bridge-tokens` 创建响应只在当次返回 `token` 与 `invite`。后续 `GET /api/bridge-tokens` 只返回去敏元数据，不会再次暴露 token 或邀请正文。
 
-`GET /api/bridge-sessions` 会返回派生的 `health` 诊断字段，包括 `state`、`reason`、`lastSeenSecondsAgo` 与 `expiresInSeconds`。前端 `桥接会话` 面板会同时展示在线和最近断开的 bridge session，方便房主判断外部 Agent 是否仍在稳定连接、是否心跳过期、以及当前绑定了哪些房间。
+`GET /api/bridge-sessions` 会返回派生的 `health` 诊断字段，包括 `state`、`reason`、`lastSeenSecondsAgo` 与 `expiresInSeconds`。adapter 也可以在 `heartbeat` 中附带 `diagnostics`，上报 `lastEventId`、`reconnectCount`、`consecutiveFailures` 与 `lastError`。前端 `桥接会话` 面板会同时展示在线和最近断开的 bridge session，方便房主判断外部 Agent 是否仍在稳定连接、是否心跳过期、当前绑定了哪些房间，以及长轮询 cursor 是否还在推进。
 
 通用 Agent 工作入口：
 

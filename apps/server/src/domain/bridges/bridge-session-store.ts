@@ -3,6 +3,14 @@ import { join } from "node:path";
 
 import { readJsonSnapshot, writeJsonSnapshotAtomic } from "../storage/json-snapshot";
 
+export type BridgeSessionDiagnostics = {
+  lastEventId?: string;
+  reconnectCount?: number;
+  consecutiveFailures?: number;
+  lastError?: string | null;
+  lastReportedAt: string;
+};
+
 export type BridgeSessionRecord = {
   id: string;
   tokenId: string;
@@ -12,6 +20,7 @@ export type BridgeSessionRecord = {
   connectedAt: string;
   lastSeenAt: string;
   expiresAt: string;
+  diagnostics?: BridgeSessionDiagnostics;
 };
 
 type BridgeSessionsSnapshot = {
@@ -29,7 +38,12 @@ export interface BridgeSessionStore {
     lastSeenAt: string;
     expiresAt: string;
   }): BridgeSessionRecord;
-  heartbeat(input: { id: string; lastSeenAt: string; expiresAt: string }): BridgeSessionRecord | null;
+  heartbeat(input: {
+    id: string;
+    lastSeenAt: string;
+    expiresAt: string;
+    diagnostics?: BridgeSessionDiagnostics;
+  }): BridgeSessionRecord | null;
   bindRoom(input: { id: string; roomId: string }): BridgeSessionRecord | null;
   disconnect(input: { id: string; disconnectedAt: string }): BridgeSessionRecord | null;
 }
@@ -102,7 +116,8 @@ export function createBridgeSessionStore(dataDir?: string): BridgeSessionStore {
         ...items[index],
         status: "connected",
         lastSeenAt: input.lastSeenAt,
-        expiresAt: input.expiresAt
+        expiresAt: input.expiresAt,
+        diagnostics: input.diagnostics ?? items[index].diagnostics
       };
       writeBridgeSessions(bridgeSessionsPath, items);
       return items[index];

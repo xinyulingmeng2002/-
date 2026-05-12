@@ -14,6 +14,12 @@ type ConnectInput = {
 type SessionInput = {
   sessionId?: string;
   agentId: string;
+  diagnostics?: {
+    lastEventId?: string;
+    reconnectCount?: number;
+    consecutiveFailures?: number;
+    lastError?: string | null;
+  };
 };
 
 type JoinRoomInput = SessionInput & {

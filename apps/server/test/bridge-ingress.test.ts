@@ -306,7 +306,13 @@ describe("bridge ingress", () => {
         },
         payload: {
           sessionId,
-          agentId: "agent-openclaw"
+          agentId: "agent-openclaw",
+          diagnostics: {
+            lastEventId: "evt-10",
+            reconnectCount: 2,
+            consecutiveFailures: 1,
+            lastError: "bridge_request_failed:503"
+          }
         }
       });
 
@@ -315,7 +321,14 @@ describe("bridge ingress", () => {
         expect.objectContaining({
           id: sessionId,
           status: "connected",
-          lastSeenAt: "2026-04-15T13:01:30.000Z"
+          lastSeenAt: "2026-04-15T13:01:30.000Z",
+          diagnostics: {
+            lastEventId: "evt-10",
+            reconnectCount: 2,
+            consecutiveFailures: 1,
+            lastError: "bridge_request_failed:503",
+            lastReportedAt: "2026-04-15T13:01:30.000Z"
+          }
         })
       );
 
@@ -351,7 +364,14 @@ describe("bridge ingress", () => {
         expect.objectContaining({
           id: sessionId,
           status: "connected",
-          activeRoomIds: ["room-2"]
+          activeRoomIds: ["room-2"],
+          diagnostics: {
+            lastEventId: "evt-10",
+            reconnectCount: 2,
+            consecutiveFailures: 1,
+            lastError: "bridge_request_failed:503",
+            lastReportedAt: "2026-04-15T13:01:30.000Z"
+          }
         })
       ]);
 

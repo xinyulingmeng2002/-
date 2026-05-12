@@ -113,6 +113,13 @@ export type BridgeSessionRecord = {
     lastSeenSecondsAgo: number | null;
     expiresInSeconds: number | null;
   };
+  diagnostics?: {
+    lastEventId?: string;
+    reconnectCount?: number;
+    consecutiveFailures?: number;
+    lastError?: string | null;
+    lastReportedAt: string;
+  };
 };
 
 export type RoomSummaryRecord = {

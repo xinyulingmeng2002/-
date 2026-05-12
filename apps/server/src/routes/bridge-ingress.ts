@@ -17,6 +17,64 @@ type AttachmentPayload = {
   sizeBytes: number;
 };
 
+type BridgeDiagnosticsPayload = {
+  lastEventId?: string;
+  reconnectCount?: number;
+  consecutiveFailures?: number;
+  lastError?: string | null;
+};
+
+function parseDiagnostics(value: unknown): BridgeDiagnosticsPayload | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const input = value as Record<string, unknown>;
+  const diagnostics: BridgeDiagnosticsPayload = {};
+
+  if (input.lastEventId !== undefined) {
+    if (typeof input.lastEventId !== "string") {
+      return null;
+    }
+    diagnostics.lastEventId = input.lastEventId;
+  }
+
+  if (input.reconnectCount !== undefined) {
+    if (
+      typeof input.reconnectCount !== "number" ||
+      !Number.isInteger(input.reconnectCount) ||
+      input.reconnectCount < 0
+    ) {
+      return null;
+    }
+    diagnostics.reconnectCount = input.reconnectCount;
+  }
+
+  if (input.consecutiveFailures !== undefined) {
+    if (
+      typeof input.consecutiveFailures !== "number" ||
+      !Number.isInteger(input.consecutiveFailures) ||
+      input.consecutiveFailures < 0
+    ) {
+      return null;
+    }
+    diagnostics.consecutiveFailures = input.consecutiveFailures;
+  }
+
+  if (input.lastError !== undefined) {
+    if (input.lastError !== null && typeof input.lastError !== "string") {
+      return null;
+    }
+    diagnostics.lastError = input.lastError;
+  }
+
+  return diagnostics;
+}
+
 function getBearerToken(authorization: unknown): string | null {
   if (typeof authorization !== "string") {
     return null;
@@ -85,17 +143,25 @@ export const bridgeIngressRoutes: FastifyPluginAsync<BridgeIngressRoutesOptions>
 
   app.post("/api/bridge/ingress/heartbeat", async (request, reply) => {
     const token = getBearerToken(request.headers.authorization);
-    const payload = request.body as { sessionId?: unknown; agentId?: unknown } | undefined;
+    const payload = request.body as
+      | { sessionId?: unknown; agentId?: unknown; diagnostics?: unknown }
+      | undefined;
 
     if (!token || typeof payload?.agentId !== "string") {
       return reply.code(400).send({ error: "authorization and agentId are required" });
+    }
+
+    const diagnostics = parseDiagnostics(payload.diagnostics);
+    if (diagnostics === null) {
+      return reply.code(400).send({ error: "diagnostics must be a valid bridge diagnostics object" });
     }
 
     try {
       const session = bridgeService.heartbeat({
         token,
         sessionId: typeof payload.sessionId === "string" ? payload.sessionId : undefined,
-        agentId: payload.agentId
+        agentId: payload.agentId,
+        diagnostics
       });
 
       return session;

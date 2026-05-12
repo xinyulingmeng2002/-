@@ -19,6 +19,14 @@ type BridgeConnectInput = {
 type BridgeSessionInput = {
   sessionId?: string;
   agentId: string;
+  diagnostics?: BridgeDiagnosticsInput;
+};
+
+type BridgeDiagnosticsInput = {
+  lastEventId?: string;
+  reconnectCount?: number;
+  consecutiveFailures?: number;
+  lastError?: string | null;
 };
 
 type BridgeJoinRoomInput = BridgeSessionInput & {
@@ -149,6 +157,28 @@ function requireSessionId(response: unknown): string {
   return sessionId;
 }
 
+function buildDiagnostics(session: CodexBridgeSessionRecord): BridgeDiagnosticsInput | undefined {
+  const diagnostics: BridgeDiagnosticsInput = {};
+
+  if (session.lastEventId !== undefined) {
+    diagnostics.lastEventId = session.lastEventId;
+  }
+
+  if (session.reconnectCount !== undefined) {
+    diagnostics.reconnectCount = session.reconnectCount;
+  }
+
+  if (session.consecutiveFailures !== undefined) {
+    diagnostics.consecutiveFailures = session.consecutiveFailures;
+  }
+
+  if (session.lastError !== undefined) {
+    diagnostics.lastError = session.lastError;
+  }
+
+  return Object.keys(diagnostics).length > 0 ? diagnostics : undefined;
+}
+
 async function disconnectCodexBridgeSession(
   client: CodexBridgeClient,
   sessionId: string,
@@ -213,9 +243,11 @@ export async function runCodexBridgeSession(
   const setIntervalFn = options.setIntervalFn ?? setInterval;
   const clearIntervalFn = options.clearIntervalFn ?? clearInterval;
   const intervalHandle = setIntervalFn(() => {
+    const currentSession = readCodexBridgeSessionFile(options.sessionFilePath);
     void client.heartbeat({
-      sessionId,
-      agentId: options.agentId
+      sessionId: currentSession.sessionId,
+      agentId: currentSession.agentId,
+      diagnostics: buildDiagnostics(currentSession)
     }).catch((error) => {
       logger.error(error);
     });
@@ -312,7 +344,21 @@ function persistEventCursor(sessionFilePath: string, lastEventId: string | undef
   const session = readCodexBridgeSessionFile(sessionFilePath);
   writeCodexBridgeSessionFile(sessionFilePath, {
     ...session,
-    lastEventId
+    lastEventId,
+    consecutiveFailures: 0,
+    lastError: null
+  });
+}
+
+function persistWatchFailure(
+  sessionFilePath: string,
+  input: { consecutiveFailures: number; lastError: string }
+): void {
+  const session = readCodexBridgeSessionFile(sessionFilePath);
+  writeCodexBridgeSessionFile(sessionFilePath, {
+    ...session,
+    consecutiveFailures: input.consecutiveFailures,
+    lastError: input.lastError
   });
 }
 
@@ -346,7 +392,10 @@ async function reconnectCodexBridgeSession(
 
   const reconnected = {
     ...session,
-    sessionId
+    sessionId,
+    reconnectCount: (session.reconnectCount ?? 0) + 1,
+    consecutiveFailures: 0,
+    lastError: null
   };
   writeCodexBridgeSessionFile(sessionFilePath, reconnected);
   return reconnected;
@@ -387,12 +436,20 @@ export async function watchCodexBridgeEvents(options: WatchEventsOptions): Promi
       failureCount = 0;
     } catch (error) {
       if (isRecoverableSessionError(error)) {
+        persistWatchFailure(options.sessionFilePath, {
+          consecutiveFailures: 1,
+          lastError: error instanceof Error ? error.message : String(error)
+        });
         await reconnectCodexBridgeSession(client, options.sessionFilePath);
         failureCount = 0;
         continue;
       }
 
       failureCount += 1;
+      persistWatchFailure(options.sessionFilePath, {
+        consecutiveFailures: failureCount,
+        lastError: error instanceof Error ? error.message : String(error)
+      });
       await sleep(resolveRetryDelayMs(options.pollMs, failureCount));
       continue;
     }

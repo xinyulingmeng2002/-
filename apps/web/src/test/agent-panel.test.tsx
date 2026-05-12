@@ -91,6 +91,13 @@ describe("AgentPanel", () => {
               reason: "heartbeat_fresh",
               lastSeenSecondsAgo: 30,
               expiresInSeconds: 90
+            },
+            diagnostics: {
+              lastEventId: "evt-10",
+              reconnectCount: 2,
+              consecutiveFailures: 1,
+              lastError: "bridge_request_failed:503",
+              lastReportedAt: "2026-04-15T12:01:00.000Z"
             }
           },
           {
@@ -189,6 +196,9 @@ describe("AgentPanel", () => {
     expect(screen.getByText("offline")).toBeInTheDocument();
     expect(screen.getByText("heartbeat_expired")).toBeInTheDocument();
     expect(screen.getByText("最后心跳 120 秒前")).toBeInTheDocument();
+    expect(screen.getByText("Cursor evt-10")).toBeInTheDocument();
+    expect(screen.getByText("重连 2 次 · 连续失败 1 次")).toBeInTheDocument();
+    expect(screen.getByText("最近错误 bridge_request_failed:503")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "打开 Codex 工作台" }));
     expect(onOpenAgentWorkspace).toHaveBeenCalledWith({
       roomId: "room-1",

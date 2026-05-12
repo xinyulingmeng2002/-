@@ -11,6 +11,9 @@ export type OpenClawBridgeSessionRecord = {
   capabilities: string[];
   heartbeatMs: number;
   lastEventId?: string;
+  reconnectCount?: number;
+  consecutiveFailures?: number;
+  lastError?: string | null;
 };
 
 function asMessage(error: unknown): string {
