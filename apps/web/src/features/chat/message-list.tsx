@@ -38,6 +38,20 @@ function formatAttachmentSize(sizeBytes: number): string {
   return `${Math.round(sizeBytes / (1024 * 102.4)) / 10} MB`;
 }
 
+function renderMessageBody(body: string) {
+  const parts = body.split(/(@[\p{L}\p{N}_-]+)/gu);
+
+  return parts.map((part, index) =>
+    /^@[\p{L}\p{N}_-]+$/u.test(part) ? (
+      <span key={`${part}:${index}`} className="message-mention">
+        {part}
+      </span>
+    ) : (
+      <span key={`${part}:${index}`}>{part}</span>
+    )
+  );
+}
+
 export function MessageList({ messages }: MessageListProps) {
   if (messages.length === 0) {
     return <div className="empty-state empty-state--timeline">还没有消息，先发一条把链路打通。</div>;
@@ -51,7 +65,7 @@ export function MessageList({ messages }: MessageListProps) {
             <span className="speaker-chip">{formatSpeakerLabel(message.speakerParticipantId)}</span>
             <time dateTime={message.timestamp}>{new Date(message.timestamp).toLocaleTimeString("zh-CN")}</time>
           </header>
-          {message.body ? <p className="message-card__body">{message.body}</p> : null}
+          {message.body ? <p className="message-card__body">{renderMessageBody(message.body)}</p> : null}
           {message.attachments?.length ? (
             <div className="message-card__attachments">
               {message.attachments.map((attachment) =>

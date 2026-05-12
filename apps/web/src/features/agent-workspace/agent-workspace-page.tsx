@@ -49,6 +49,21 @@ function shouldRefreshSnapshotForEvents(events: MessageEventRecord[]): boolean {
   );
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isMentionedForAgent(event: MessageEventRecord, snapshot: BridgeWorkspaceSnapshot): boolean {
+  const body = event.payload.body ?? "";
+  const names = [snapshot.agent.displayName, snapshot.agent.id].filter(Boolean);
+
+  return names.some((name) => {
+    const mentionPattern = new RegExp(`(^|\\s)@${escapeRegExp(name)}(?=$|\\s|[.,!?，。！？:：;；、])`, "u");
+
+    return mentionPattern.test(body);
+  });
+}
+
 function createWorkspaceConfig(input: {
   bridgeToken: string;
   agentId: string;
@@ -108,6 +123,7 @@ export function AgentWorkspacePage() {
   const [privateMemoryOverview, setPrivateMemoryOverview] = useState<PrivateMemoryOverview[]>([]);
   const [statusText, setStatusText] = useState("等待 bridge token 与 session 信息。");
   const [errorText, setErrorText] = useState("");
+  const mentionedEvents = snapshot ? events.filter((event) => isMentionedForAgent(event, snapshot)) : [];
 
   async function connectWorkspace() {
     const config = createWorkspaceConfig({
@@ -416,6 +432,18 @@ export function AgentWorkspacePage() {
                       <strong>{participant.displayName}</strong>
                       <p>{formatParticipantLine(participant)}</p>
                       <small>最后活跃 {participant.lastSeenAt}</small>
+                    </div>
+                  ))}
+                </article>
+
+                <article className="workspace-mini-card workspace-mini-card--mentions">
+                  <h3>提到我的消息</h3>
+                  {mentionedEvents.length === 0 ? <p>当前没有提到我的消息。</p> : null}
+                  {mentionedEvents.map((event) => (
+                    <div key={event.eventId} className="workspace-knowledge-row">
+                      <strong>{event.payload.speakerParticipantId ?? "unknown"}</strong>
+                      <p>{event.payload.body}</p>
+                      <small>{event.eventId}</small>
                     </div>
                   ))}
                 </article>

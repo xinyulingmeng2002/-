@@ -155,7 +155,7 @@ describe("AgentWorkspacePage", () => {
           payload: {
             messageId: "msg-2",
             speakerParticipantId: "human-1",
-            body: "请继续处理这个房间。"
+            body: "@Codex 这条消息需要你回应。"
           }
         }
       ],
@@ -246,6 +246,8 @@ describe("AgentWorkspacePage", () => {
     expect(screen.getByText("agent-codex-main · agent · codex · chat, code")).toBeInTheDocument();
     expect(screen.getByText("OpenClaw")).toBeInTheDocument();
     expect(screen.getByText("agent-openclaw-main · agent · openclaw · chat, research")).toBeInTheDocument();
+    expect(screen.getByText("提到我的消息")).toBeInTheDocument();
+    expect(screen.getAllByText("@Codex 这条消息需要你回应。").length).toBeGreaterThan(0);
     expect(screen.getByText("统一工作台")).toBeInTheDocument();
     expect(screen.getByText("待审核候选")).toBeInTheDocument();
     expect(screen.getByText("待审核协作决策")).toBeInTheDocument();
