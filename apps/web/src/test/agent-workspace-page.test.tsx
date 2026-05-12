@@ -262,6 +262,10 @@ describe("AgentWorkspacePage", () => {
     expect(screen.getByText("回复我的消息")).toBeInTheDocument();
     expect(screen.getAllByText(/回复 agent-codex-main: 我刚才的观点/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/我接着这个点补一句。/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "引用回复 evt-2" }));
+    expect(screen.getByLabelText("消息内容")).toHaveValue(
+      "> 回复 human-1: @Codex 这条消息需要你回应。\n\n"
+    );
     expect(screen.getByText("统一工作台")).toBeInTheDocument();
     expect(screen.getByText("待审核候选")).toBeInTheDocument();
     expect(screen.getByText("待审核协作决策")).toBeInTheDocument();

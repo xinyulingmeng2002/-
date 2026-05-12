@@ -109,6 +109,16 @@ function renderEvent(event: MessageEventRecord) {
   );
 }
 
+function createWorkspaceReplyDraft(event: MessageEventRecord): string {
+  const speaker = event.payload.speakerParticipantId ?? "unknown";
+  const body = (event.payload.body ?? "").trim().replace(/\s+/g, " ");
+  const attachmentNames = event.payload.attachments?.map((attachment) => attachment.name).join(", ");
+  const sourceText = body || (attachmentNames ? `[附件] ${attachmentNames}` : "[空消息]");
+  const excerpt = sourceText.length > 80 ? `${sourceText.slice(0, 80)}...` : sourceText;
+
+  return `> 回复 ${speaker}: ${excerpt}\n\n`;
+}
+
 function formatParticipantLine(participant: BridgeWorkspaceParticipant): string {
   return [
     participant.id,
@@ -456,6 +466,13 @@ export function AgentWorkspacePage() {
                       <strong>{event.payload.speakerParticipantId ?? "unknown"}</strong>
                       <p>{event.payload.body}</p>
                       <small>{event.eventId}</small>
+                      <button
+                        type="button"
+                        aria-label={`引用回复 ${event.eventId}`}
+                        onClick={() => setMessageBody(createWorkspaceReplyDraft(event))}
+                      >
+                        引用回复
+                      </button>
                     </div>
                   ))}
                 </article>
@@ -468,6 +485,13 @@ export function AgentWorkspacePage() {
                       <strong>{event.payload.speakerParticipantId ?? "unknown"}</strong>
                       <p>{event.payload.body}</p>
                       <small>{event.eventId}</small>
+                      <button
+                        type="button"
+                        aria-label={`引用回复 ${event.eventId}`}
+                        onClick={() => setMessageBody(createWorkspaceReplyDraft(event))}
+                      >
+                        引用回复
+                      </button>
                     </div>
                   ))}
                 </article>
