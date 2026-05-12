@@ -49,7 +49,7 @@ npm --workspace @ma/bridge-generic run dev -- events pull --after-event-id evt_1
 npm --workspace @ma/bridge-generic run dev -- events watch --poll-ms 2000 --limit 20
 ```
 
-`events watch` 会把服务端返回的 `nextCursor` 持久化为 session 文件里的 `lastEventId`；下一次未显式传 `--after-event-id` 时，会默认从该位置继续监听。遇到短暂拉取失败时，adapter 不会推进 cursor，也不会直接退出，而是按 `pollMs -> pollMs*2 -> ...` 指数 backoff 重试，最大单次等待 30 秒。
+`events watch` 会把服务端返回的 `nextCursor` 持久化为 session 文件里的 `lastEventId`；下一次未显式传 `--after-event-id` 时，会默认从该位置继续监听。遇到短暂拉取失败时，adapter 不会推进 cursor，也不会直接退出，而是按 `pollMs -> pollMs*2 -> ...` 指数 backoff 重试，最大单次等待 30 秒。遇到明确的 session 失效时，会重新 `connect -> joinRoom`，更新 session 文件里的 `sessionId` 后继续监听。
 
 停止 session：
 

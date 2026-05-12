@@ -318,6 +318,42 @@ function persistEventCursor(sessionFilePath: string, lastEventId: string | undef
   });
 }
 
+function isRecoverableSessionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("bridge_request_failed:404") ||
+    message.includes("bridge_request_failed:409")
+  );
+}
+
+async function reconnectOpenClawBridgeSession(
+  client: OpenClawBridgeClient,
+  sessionFilePath: string
+): Promise<OpenClawBridgeSessionRecord> {
+  const session = readOpenClawBridgeSessionFile(sessionFilePath);
+  const connected = await client.connect({
+    agentId: session.agentId,
+    displayName: session.displayName,
+    capabilities: session.capabilities
+  });
+  const sessionId = requireSessionId(connected);
+
+  await client.joinRoom({
+    sessionId,
+    agentId: session.agentId,
+    roomId: session.roomId,
+    displayName: session.displayName,
+    capabilities: session.capabilities
+  });
+
+  const reconnected = {
+    ...session,
+    sessionId
+  };
+  writeOpenClawBridgeSessionFile(sessionFilePath, reconnected);
+  return reconnected;
+}
+
 function resolveRetryDelayMs(pollMs: number, failureCount: number): number {
   return Math.min(pollMs * 2 ** Math.max(failureCount - 1, 0), 30_000);
 }
@@ -333,19 +369,31 @@ export async function watchOpenClawBridgeEvents(options: WatchEventsOptions): Pr
   let afterEventId = options.afterEventId ?? session.lastEventId;
   const sleep = options.sleep ?? defaultSleep;
   let failureCount = 0;
+  const client = resolveClient({
+    client: options.client,
+    baseUrl: session.baseUrl,
+    token: session.token
+  });
 
   while (!options.signal?.aborted) {
     let batch: unknown;
     try {
-      batch = await pullOpenClawBridgeEvents({
-        client: options.client,
-        sessionFilePath: options.sessionFilePath,
-        roomId: options.roomId,
+      const currentSession = readOpenClawBridgeSessionFile(options.sessionFilePath);
+      batch = await client.pullEvents({
+        sessionId: currentSession.sessionId,
+        agentId: currentSession.agentId,
+        roomId: options.roomId ?? currentSession.roomId,
         afterEventId,
         limit: options.limit
       });
       failureCount = 0;
-    } catch {
+    } catch (error) {
+      if (isRecoverableSessionError(error)) {
+        await reconnectOpenClawBridgeSession(client, options.sessionFilePath);
+        failureCount = 0;
+        continue;
+      }
+
       failureCount += 1;
       await sleep(resolveRetryDelayMs(options.pollMs, failureCount));
       continue;

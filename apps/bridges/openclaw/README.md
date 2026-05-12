@@ -91,7 +91,7 @@ npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id evt_
 npm --workspace @ma/bridge-openclaw run dev -- events watch --after-event-id evt_123 --limit 20 --poll-ms 2000
 ```
 
-`events watch` 会复用 session 文件，持续调用 bridge egress events，并把每个非空批次输出为一行 JSON。它会把服务端返回的 `nextCursor` 持久化为 session 文件里的 `lastEventId`；下一次未显式传 `--after-event-id` 时，会默认从该位置继续监听。遇到短暂拉取失败时，adapter 不会推进 cursor，也不会直接退出，而是按 `pollMs -> pollMs*2 -> ...` 指数 backoff 重试，最大单次等待 30 秒。
+`events watch` 会复用 session 文件，持续调用 bridge egress events，并把每个非空批次输出为一行 JSON。它会把服务端返回的 `nextCursor` 持久化为 session 文件里的 `lastEventId`；下一次未显式传 `--after-event-id` 时，会默认从该位置继续监听。遇到短暂拉取失败时，adapter 不会推进 cursor，也不会直接退出，而是按 `pollMs -> pollMs*2 -> ...` 指数 backoff 重试，最大单次等待 30 秒。遇到明确的 session 失效时，会重新 `connect -> joinRoom`，更新 session 文件里的 `sessionId` 后继续监听。
 
 拉取房间工作快照：
 
@@ -151,7 +151,7 @@ data/bridges/openclaw/session.json
 6. `uploadFile(file)` 后通过 `sendMessage({ body?, attachments })` 发送正式附件消息
 7. `pullEvents({ sessionId, agentId, roomId, afterEventId?, limit? })`
 8. `getWorkspaceSnapshot({ sessionId, agentId, roomId, eventLimit? })` 一次性获取房间工作面
-9. 长运行场景用 `events watch` 持续监听，adapter 会把 `nextCursor` 写回 session 文件用于断点续跑
+9. 长运行场景用 `events watch` 持续监听，adapter 会把 `nextCursor` 写回 session 文件用于断点续跑；明确 session 失效时会重新连接并继续监听
 10. 浏览器 Agent 工作台可以复用现有私有记忆受控接口，查看去敏概览并把可共享项提交为共享候选
 11. 退出时 `disconnect({ sessionId, agentId })`
 

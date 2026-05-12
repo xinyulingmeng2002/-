@@ -608,6 +608,87 @@ describe("codex bridge runtime", () => {
     }
   });
 
+  it("reconnects a stale codex session and keeps watching from the persisted cursor", async () => {
+    const tempDir = createTempDir("ma-codex-bridge-");
+    const sessionFilePath = join(tempDir, "codex-session.json");
+    const abortController = new AbortController();
+    const batches: unknown[] = [];
+    const client = {
+      connect: vi.fn().mockResolvedValue({ session: { id: "session-2" } }),
+      joinRoom: vi.fn().mockResolvedValue({ id: "session-2", activeRoomIds: ["room-1"] }),
+      pullEvents: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("bridge_request_failed:404"))
+        .mockResolvedValueOnce({
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        })
+    };
+    const sleep = vi.fn().mockImplementation(async () => {
+      if (client.pullEvents.mock.calls.length >= 2) {
+        abortController.abort();
+      }
+    });
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        displayName: "Codex",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000,
+        lastEventId: "evt-1"
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      await watchCodexBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        limit: 20,
+        pollMs: 10,
+        signal: abortController.signal,
+        sleep,
+        onBatch(batch) {
+          batches.push(batch);
+        }
+      });
+
+      expect(client.connect).toHaveBeenCalledWith({
+        agentId: "agent-codex-main",
+        displayName: "Codex",
+        capabilities: ["chat"]
+      });
+      expect(client.joinRoom).toHaveBeenCalledWith({
+        sessionId: "session-2",
+        agentId: "agent-codex-main",
+        roomId: "room-1",
+        displayName: "Codex",
+        capabilities: ["chat"]
+      });
+      expect(client.pullEvents).toHaveBeenNthCalledWith(2, {
+        sessionId: "session-2",
+        agentId: "agent-codex-main",
+        roomId: "room-1",
+        afterEventId: "evt-1",
+        limit: 20
+      });
+      expect(batches).toEqual([
+        {
+          items: [{ eventId: "evt-2", kind: "message.created", roomId: "room-1" }],
+          nextCursor: "evt-2"
+        }
+      ]);
+      const stored = JSON.parse(readFileSync(sessionFilePath, "utf8")) as Record<string, unknown>;
+      expect(stored.sessionId).toBe("session-2");
+      expect(stored.lastEventId).toBe("evt-2");
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("keeps the session file when live shutdown disconnect fails", async () => {
     const tempDir = createTempDir("ma-codex-bridge-");
     const sessionFilePath = join(tempDir, "codex-session.json");
