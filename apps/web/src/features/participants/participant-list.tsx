@@ -6,9 +6,10 @@ export type ParticipantViewModel = {
 
 type ParticipantListProps = {
   participants: ParticipantViewModel[];
+  onMentionParticipant?: (participant: ParticipantViewModel) => void;
 };
 
-export function ParticipantList({ participants }: ParticipantListProps) {
+export function ParticipantList({ participants, onMentionParticipant }: ParticipantListProps) {
   const humans = participants.filter((participant) => participant.type === "human");
   const agents = participants.filter((participant) => participant.type === "agent");
 
@@ -19,8 +20,20 @@ export function ParticipantList({ participants }: ParticipantListProps) {
         {humans.length === 0 ? <p className="empty-state">暂无在线人类。</p> : null}
         {humans.map((participant) => (
           <div key={participant.id} className="participant-card participant-card--human">
-            <strong>{participant.displayName}</strong>
-            <span>{participant.id}</span>
+            <div>
+              <strong>{participant.displayName}</strong>
+              <span>{participant.id}</span>
+            </div>
+            {onMentionParticipant ? (
+              <button
+                type="button"
+                className="participant-card__action"
+                aria-label={`从成员列表对 ${participant.displayName} 说`}
+                onClick={() => onMentionParticipant(participant)}
+              >
+                对 TA 说
+              </button>
+            ) : null}
           </div>
         ))}
       </section>
@@ -30,8 +43,20 @@ export function ParticipantList({ participants }: ParticipantListProps) {
         {agents.length === 0 ? <p className="empty-state">暂无智能体接入。</p> : null}
         {agents.map((participant) => (
           <div key={participant.id} className="participant-card participant-card--agent">
-            <strong>{participant.displayName}</strong>
-            <span>{participant.id}</span>
+            <div>
+              <strong>{participant.displayName}</strong>
+              <span>{participant.id}</span>
+            </div>
+            {onMentionParticipant ? (
+              <button
+                type="button"
+                className="participant-card__action"
+                aria-label={`从成员列表对 ${participant.displayName} 说`}
+                onClick={() => onMentionParticipant(participant)}
+              >
+                对 TA 说
+              </button>
+            ) : null}
           </div>
         ))}
       </section>

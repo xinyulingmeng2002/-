@@ -385,10 +385,17 @@ body {
 
 .participant-card {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: 4px;
   padding: 12px 14px;
   border-radius: 16px;
+}
+
+.participant-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .participant-card--human {
@@ -402,6 +409,18 @@ body {
 .participant-card span {
   color: #61708c;
   font-size: 12px;
+}
+
+.participant-card__action {
+  border: 1px solid rgba(75, 103, 173, 0.18);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #1d407f;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .agent-panel {

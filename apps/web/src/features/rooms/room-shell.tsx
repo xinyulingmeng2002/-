@@ -142,6 +142,13 @@ function createReplyDraft(message: TimelineMessage): string {
   return `> 回复 ${message.speakerParticipantId}: ${excerpt}\n\n`;
 }
 
+function createMentionDraft(participant: ParticipantViewModel): MessageComposerDraft {
+  return {
+    id: `mention:${participant.id}:${Date.now()}`,
+    body: `@${participant.displayName} `
+  };
+}
+
 async function loadAgentPanelData(apiClient: ApiClient, roomId: string): Promise<AgentPanelData> {
   const [
     directoryParticipants,
@@ -514,6 +521,10 @@ export function RoomShell({
     });
   }
 
+  function handleMentionParticipant(participant: ParticipantViewModel) {
+    setComposerDraft(createMentionDraft(participant));
+  }
+
   async function handleUpload(response: UploadAttachmentResponse) {
     if (!activeRoomId || activeRoomId === "room-offline") {
       return;
@@ -636,7 +647,7 @@ export function RoomShell({
         </div>
         <div className="panel-body panel-body--scroll panel-body--stack">
           {panelErrorText ? <div className="status-banner">{panelErrorText}</div> : null}
-          <ParticipantList participants={participants} />
+          <ParticipantList participants={participants} onMentionParticipant={handleMentionParticipant} />
           <AgentPanel
             activeRoomId={activeRoomId}
             participants={directoryParticipants}
