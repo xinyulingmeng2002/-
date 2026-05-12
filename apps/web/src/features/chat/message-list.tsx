@@ -39,7 +39,19 @@ function formatAttachmentSize(sizeBytes: number): string {
   return `${Math.round(sizeBytes / (1024 * 102.4)) / 10} MB`;
 }
 
-function renderMessageBody(body: string) {
+function parsePublicReplyReference(body: string): { quote: string; body: string } | null {
+  const match = /^>\s*(回复\s+[^\n]+)(?:\n{2,}([\s\S]*))?$/u.exec(body);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    quote: match[1].trim(),
+    body: match[2] ?? ""
+  };
+}
+
+function renderInlineMessageText(body: string) {
   const parts = body.split(/(@[\p{L}\p{N}_-]+)/gu);
 
   return parts.map((part, index) =>
@@ -50,6 +62,22 @@ function renderMessageBody(body: string) {
     ) : (
       <span key={`${part}:${index}`}>{part}</span>
     )
+  );
+}
+
+function renderMessageBody(body: string) {
+  const replyReference = parsePublicReplyReference(body);
+  if (!replyReference) {
+    return renderInlineMessageText(body);
+  }
+
+  return (
+    <>
+      <blockquote className="message-quote">{replyReference.quote}</blockquote>
+      {replyReference.body ? (
+        <span className="message-body-text">{renderInlineMessageText(replyReference.body)}</span>
+      ) : null}
+    </>
   );
 }
 
@@ -78,7 +106,7 @@ export function MessageList({ messages, onReply }: MessageListProps) {
               <time dateTime={message.timestamp}>{new Date(message.timestamp).toLocaleTimeString("zh-CN")}</time>
             </div>
           </header>
-          {message.body ? <p className="message-card__body">{renderMessageBody(message.body)}</p> : null}
+          {message.body ? <div className="message-card__body">{renderMessageBody(message.body)}</div> : null}
           {message.attachments?.length ? (
             <div className="message-card__attachments">
               {message.attachments.map((attachment) =>

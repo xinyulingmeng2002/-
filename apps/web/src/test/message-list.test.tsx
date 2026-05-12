@@ -53,4 +53,24 @@ describe("MessageList", () => {
       })
     );
   });
+
+  it("renders public reply references as a visual quote block", () => {
+    render(
+      <MessageList
+        messages={[
+          {
+            id: "msg-reply-1",
+            kind: "chat",
+            body: "> 回复 agent-codex-main: 我刚才的观点\n\n@Codex 我接着这个点说。",
+            speakerParticipantId: "human-1",
+            timestamp: "2026-05-12T00:00:00.000Z"
+          }
+        ]}
+      />
+    );
+
+    expect(screen.getByText("回复 agent-codex-main: 我刚才的观点")).toHaveClass("message-quote");
+    expect(screen.getByText("@Codex")).toHaveClass("message-mention");
+    expect(screen.getByText(/我接着这个点说。/)).toBeInTheDocument();
+  });
 });
