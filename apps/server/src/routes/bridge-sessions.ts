@@ -2,27 +2,63 @@ import type { FastifyPluginAsync } from "fastify";
 
 import type { BridgeSessionRecord, BridgeSessionStore } from "../domain/bridges/bridge-session-store";
 
+type BridgeSessionHealth = {
+  state: "online" | "offline";
+  reason: "heartbeat_fresh" | "heartbeat_expired" | "owner_disconnected" | "invalid_timestamps";
+  lastSeenSecondsAgo: number | null;
+  expiresInSeconds: number | null;
+};
+
 type BridgeSessionsRoutesOptions = {
   bridgeSessionStore: BridgeSessionStore;
   now?: () => Date;
 };
 
-function deriveStatus(
-  session: BridgeSessionRecord,
-  now: Date
-): BridgeSessionRecord["status"] {
+function deriveHealth(session: BridgeSessionRecord, now: Date): BridgeSessionHealth {
+  const nowMs = now.getTime();
   const expiresAt = Date.parse(session.expiresAt);
   const lastSeenAt = Date.parse(session.lastSeenAt);
 
   if (Number.isNaN(expiresAt) || Number.isNaN(lastSeenAt)) {
-    return "disconnected";
+    return {
+      state: "offline",
+      reason: "invalid_timestamps",
+      lastSeenSecondsAgo: null,
+      expiresInSeconds: null
+    };
   }
 
-  if (lastSeenAt > expiresAt) {
-    return "disconnected";
+  const lastSeenSecondsAgo = Math.round((nowMs - lastSeenAt) / 1000);
+  const expiresInSeconds = Math.round((expiresAt - nowMs) / 1000);
+
+  if (session.status === "disconnected" && expiresAt <= lastSeenAt) {
+    return {
+      state: "offline",
+      reason: "owner_disconnected",
+      lastSeenSecondsAgo,
+      expiresInSeconds
+    };
   }
 
-  return expiresAt > now.getTime() ? "connected" : "disconnected";
+  if (lastSeenAt > expiresAt || expiresAt <= nowMs) {
+    return {
+      state: "offline",
+      reason: "heartbeat_expired",
+      lastSeenSecondsAgo,
+      expiresInSeconds
+    };
+  }
+
+  return {
+    state: "online",
+    reason: "heartbeat_fresh",
+    lastSeenSecondsAgo,
+    expiresInSeconds
+  };
+}
+
+function deriveStatus(health: BridgeSessionHealth): BridgeSessionRecord["status"] {
+  return health.state === "online" ? "connected" : "disconnected";
 }
 
 export const bridgeSessionsRoutes: FastifyPluginAsync<BridgeSessionsRoutesOptions> = async (
@@ -33,10 +69,15 @@ export const bridgeSessionsRoutes: FastifyPluginAsync<BridgeSessionsRoutesOption
 
   app.get("/api/bridge-sessions", async () => {
     return {
-      items: bridgeSessionStore.list().map((session) => ({
-        ...session,
-        status: deriveStatus(session, now())
-      }))
+      items: bridgeSessionStore.list().map((session) => {
+        const health = deriveHealth(session, now());
+
+        return {
+          ...session,
+          status: deriveStatus(health),
+          health
+        };
+      })
     };
   });
 

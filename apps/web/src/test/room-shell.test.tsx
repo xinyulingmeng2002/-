@@ -216,7 +216,7 @@ describe("RoomShell", () => {
     });
 
     expect((await screen.findAllByText("实时助手")).length).toBeGreaterThan(0);
-    expect(await screen.findByText("在线桥接")).toBeInTheDocument();
+    expect(await screen.findByText("桥接会话")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "打开 实时助手 工作台" }));
     expect(onOpenAgentWorkspace).toHaveBeenCalledWith({
       roomId: "room-1",

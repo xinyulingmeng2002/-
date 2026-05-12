@@ -107,6 +107,12 @@ export type BridgeSessionRecord = {
   connectedAt: string;
   lastSeenAt: string;
   expiresAt: string;
+  health?: {
+    state: "online" | "offline";
+    reason: "heartbeat_fresh" | "heartbeat_expired" | "owner_disconnected" | "invalid_timestamps";
+    lastSeenSecondsAgo: number | null;
+    expiresInSeconds: number | null;
+  };
 };
 
 export type RoomSummaryRecord = {

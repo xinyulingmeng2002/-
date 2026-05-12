@@ -68,7 +68,13 @@ describe("bridge sessions api", () => {
             activeRoomIds: ["room-1"],
             connectedAt: "2026-04-15T00:00:00.000Z",
             lastSeenAt: "2026-04-15T00:04:00.000Z",
-            expiresAt: "2026-04-15T00:06:00.000Z"
+            expiresAt: "2026-04-15T00:06:00.000Z",
+            health: {
+              state: "online",
+              reason: "heartbeat_fresh",
+              lastSeenSecondsAgo: 60,
+              expiresInSeconds: 60
+            }
           },
           {
             id: "session-expired",
@@ -78,7 +84,13 @@ describe("bridge sessions api", () => {
             activeRoomIds: [],
             connectedAt: "2026-04-15T00:00:00.000Z",
             lastSeenAt: "2026-04-15T00:01:00.000Z",
-            expiresAt: "2026-04-15T00:04:59.000Z"
+            expiresAt: "2026-04-15T00:04:59.000Z",
+            health: {
+              state: "offline",
+              reason: "heartbeat_expired",
+              lastSeenSecondsAgo: 240,
+              expiresInSeconds: -1
+            }
           }
         ]
       });

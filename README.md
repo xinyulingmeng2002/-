@@ -58,9 +58,11 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 12. 示例 adapter 可用 `workspace snapshot --event-limit <n>` 从已保存 session 文件拉取一次房间工作快照
 13. 长时间运行的 Codex/OpenClaw/Generic adapter 可以用 `events watch` 在外层持续轮询；adapter 会把最新 `nextCursor` 保存为 session 文件里的 `lastEventId`，重启后默认从该位置继续
 14. 如果需要浏览器里的独立 Agent 工作台，可打开 `?view=agent-workspace&roomId=<roomId>`，再粘贴 bridge token 手动连接、查看快照、监听事件、通过 bridge ingress 发送文字或正式附件消息，并把去敏私有记忆概览中的可共享项提交为共享候选
-15. 退出时调用 `disconnect({ sessionId, agentId })`，房主也可以在在线 bridge session 卡片里强制断连
+15. 退出时调用 `disconnect({ sessionId, agentId })`，房主也可以在 `桥接会话` 卡片里查看心跳诊断并强制断连
 
 `POST /api/bridge-tokens` 创建响应只在当次返回 `token` 与 `invite`。后续 `GET /api/bridge-tokens` 只返回去敏元数据，不会再次暴露 token 或邀请正文。
+
+`GET /api/bridge-sessions` 会返回派生的 `health` 诊断字段，包括 `state`、`reason`、`lastSeenSecondsAgo` 与 `expiresInSeconds`。前端 `桥接会话` 面板会同时展示在线和最近断开的 bridge session，方便房主判断外部 Agent 是否仍在稳定连接、是否心跳过期、以及当前绑定了哪些房间。
 
 通用 Agent 工作入口：
 

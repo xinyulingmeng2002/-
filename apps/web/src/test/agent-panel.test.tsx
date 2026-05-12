@@ -65,6 +65,15 @@ describe("AgentPanel", () => {
             capabilities: ["chat"],
             createdAt: "2026-04-15T12:00:00.000Z",
             lastSeenAt: "2026-04-15T12:00:00.000Z"
+          },
+          {
+            id: "agent-openclaw",
+            type: "agent",
+            displayName: "OpenClaw",
+            bridgeKind: "openclaw",
+            capabilities: ["chat"],
+            createdAt: "2026-04-15T12:00:00.000Z",
+            lastSeenAt: "2026-04-15T12:03:00.000Z"
           }
         ]}
         sessions={[
@@ -76,7 +85,29 @@ describe("AgentPanel", () => {
             activeRoomIds: ["room-1"],
             connectedAt: "2026-04-15T12:00:00.000Z",
             lastSeenAt: "2026-04-15T12:00:00.000Z",
-            expiresAt: "2026-04-15T12:02:00.000Z"
+            expiresAt: "2026-04-15T12:02:00.000Z",
+            health: {
+              state: "online",
+              reason: "heartbeat_fresh",
+              lastSeenSecondsAgo: 30,
+              expiresInSeconds: 90
+            }
+          },
+          {
+            id: "session-2",
+            tokenId: "token-2",
+            agentId: "agent-openclaw",
+            status: "disconnected",
+            activeRoomIds: ["room-1"],
+            connectedAt: "2026-04-15T12:00:00.000Z",
+            lastSeenAt: "2026-04-15T12:03:00.000Z",
+            expiresAt: "2026-04-15T12:04:59.000Z",
+            health: {
+              state: "offline",
+              reason: "heartbeat_expired",
+              lastSeenSecondsAgo: 120,
+              expiresInSeconds: -1
+            }
           }
         ]}
         tokens={[]}
@@ -154,6 +185,10 @@ describe("AgentPanel", () => {
     );
 
     expect(screen.getAllByText("Codex").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("OpenClaw").length).toBeGreaterThan(0);
+    expect(screen.getByText("offline")).toBeInTheDocument();
+    expect(screen.getByText("heartbeat_expired")).toBeInTheDocument();
+    expect(screen.getByText("最后心跳 120 秒前")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "打开 Codex 工作台" }));
     expect(onOpenAgentWorkspace).toHaveBeenCalledWith({
       roomId: "room-1",

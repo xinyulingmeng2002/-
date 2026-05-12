@@ -52,6 +52,22 @@ function resolveDisplayName(participants: ParticipantRecord[], agentId: string):
   return participants.find((participant) => participant.id === agentId)?.displayName ?? agentId;
 }
 
+function formatSecondsAgo(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) {
+    return "最后心跳未知";
+  }
+
+  return `最后心跳 ${seconds} 秒前`;
+}
+
+function formatExpiresIn(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) {
+    return "过期时间未知";
+  }
+
+  return seconds >= 0 ? `TTL 剩余 ${seconds} 秒` : `TTL 已过期 ${Math.abs(seconds)} 秒`;
+}
+
 export function AgentPanel({
   activeRoomId,
   participants,
@@ -70,28 +86,47 @@ export function AgentPanel({
   onSharePrivateMemory,
   onOpenAgentWorkspace
 }: AgentPanelProps) {
-  const connectedSessions = sessions.filter((session) => session.status === "connected");
+  const sortedSessions = [...sessions].sort((left, right) => {
+    if (left.status !== right.status) {
+      return left.status === "connected" ? -1 : 1;
+    }
+
+    return right.lastSeenAt.localeCompare(left.lastSeenAt);
+  });
 
   return (
     <div className="agent-panel">
       <section className="agent-section">
         <div className="agent-section__header">
-          <h3>在线桥接</h3>
-          <p>展示当前已接入的智能体会话与房间绑定。</p>
+          <h3>桥接会话</h3>
+          <p>展示当前和最近断开的智能体会话、心跳状态与房间绑定。</p>
         </div>
         <div className="agent-status-list">
-          {connectedSessions.length === 0 ? <p className="empty-state">暂无在线 bridge session。</p> : null}
-          {connectedSessions.map((session) => (
+          {sortedSessions.length === 0 ? <p className="empty-state">暂无 bridge session。</p> : null}
+          {sortedSessions.map((session) => (
             <article key={session.id} className="agent-status-card">
               <div>
                 <strong>{resolveDisplayName(participants, session.agentId)}</strong>
                 <p>{session.agentId}</p>
+                <p>{formatSecondsAgo(session.health?.lastSeenSecondsAgo)}</p>
+                <p>{formatExpiresIn(session.health?.expiresInSeconds)}</p>
               </div>
               <div className="agent-status-card__meta">
-                <span className="status-pill status-pill--on">connected</span>
+                <span
+                  className={
+                    session.status === "connected"
+                      ? "status-pill status-pill--on"
+                      : "status-pill status-pill--off"
+                  }
+                >
+                  {session.status === "connected" ? "connected" : "offline"}
+                </span>
+                <span>{session.health?.reason ?? "health_unknown"}</span>
                 <span>{session.activeRoomIds.join(", ") || "未加入房间"}</span>
               </div>
-              {onOpenAgentWorkspace && session.activeRoomIds.includes(activeRoomId) ? (
+              {onOpenAgentWorkspace &&
+              session.status === "connected" &&
+              session.activeRoomIds.includes(activeRoomId) ? (
                 <button
                   type="button"
                   className="secondary-button"
@@ -106,7 +141,7 @@ export function AgentPanel({
                   打开 {resolveDisplayName(participants, session.agentId)} 工作台
                 </button>
               ) : null}
-              {onDisconnectSession ? (
+              {onDisconnectSession && session.status === "connected" ? (
                 <button
                   type="button"
                   className="secondary-button"
