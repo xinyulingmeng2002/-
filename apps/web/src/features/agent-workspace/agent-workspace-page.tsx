@@ -64,6 +64,17 @@ function isMentionedForAgent(event: MessageEventRecord, snapshot: BridgeWorkspac
   });
 }
 
+function isReplyForAgent(event: MessageEventRecord, snapshot: BridgeWorkspaceSnapshot): boolean {
+  const body = event.payload.body ?? "";
+  const names = [snapshot.agent.displayName, snapshot.agent.id].filter(Boolean);
+
+  return names.some((name) => {
+    const replyPattern = new RegExp(`^>\\s*回复\\s+${escapeRegExp(name)}\\s*:`, "u");
+
+    return replyPattern.test(body);
+  });
+}
+
 function createWorkspaceConfig(input: {
   bridgeToken: string;
   agentId: string;
@@ -124,6 +135,7 @@ export function AgentWorkspacePage() {
   const [statusText, setStatusText] = useState("等待 bridge token 与 session 信息。");
   const [errorText, setErrorText] = useState("");
   const mentionedEvents = snapshot ? events.filter((event) => isMentionedForAgent(event, snapshot)) : [];
+  const repliedEvents = snapshot ? events.filter((event) => isReplyForAgent(event, snapshot)) : [];
 
   async function connectWorkspace() {
     const config = createWorkspaceConfig({
@@ -440,6 +452,18 @@ export function AgentWorkspacePage() {
                   <h3>提到我的消息</h3>
                   {mentionedEvents.length === 0 ? <p>当前没有提到我的消息。</p> : null}
                   {mentionedEvents.map((event) => (
+                    <div key={event.eventId} className="workspace-knowledge-row">
+                      <strong>{event.payload.speakerParticipantId ?? "unknown"}</strong>
+                      <p>{event.payload.body}</p>
+                      <small>{event.eventId}</small>
+                    </div>
+                  ))}
+                </article>
+
+                <article className="workspace-mini-card workspace-mini-card--replies">
+                  <h3>回复我的消息</h3>
+                  {repliedEvents.length === 0 ? <p>当前没有回复我的消息。</p> : null}
+                  {repliedEvents.map((event) => (
                     <div key={event.eventId} className="workspace-knowledge-row">
                       <strong>{event.payload.speakerParticipantId ?? "unknown"}</strong>
                       <p>{event.payload.body}</p>

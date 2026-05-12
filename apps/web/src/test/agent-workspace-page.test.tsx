@@ -157,9 +157,20 @@ describe("AgentWorkspacePage", () => {
             speakerParticipantId: "human-1",
             body: "@Codex 这条消息需要你回应。"
           }
+        },
+        {
+          eventId: "evt-reply-1",
+          kind: "message.created",
+          roomId: "room-1",
+          timestamp: "2026-05-10T00:00:01.000Z",
+          payload: {
+            messageId: "msg-reply-1",
+            speakerParticipantId: "human-1",
+            body: "> 回复 agent-codex-main: 我刚才的观点\n\n我接着这个点补一句。"
+          }
         }
       ],
-      nextCursor: "evt-2"
+      nextCursor: "evt-reply-1"
     });
     vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
       agent: {
@@ -248,6 +259,9 @@ describe("AgentWorkspacePage", () => {
     expect(screen.getByText("agent-openclaw-main · agent · openclaw · chat, research")).toBeInTheDocument();
     expect(screen.getByText("提到我的消息")).toBeInTheDocument();
     expect(screen.getAllByText("@Codex 这条消息需要你回应。").length).toBeGreaterThan(0);
+    expect(screen.getByText("回复我的消息")).toBeInTheDocument();
+    expect(screen.getAllByText(/回复 agent-codex-main: 我刚才的观点/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/我接着这个点补一句。/).length).toBeGreaterThan(0);
     expect(screen.getByText("统一工作台")).toBeInTheDocument();
     expect(screen.getByText("待审核候选")).toBeInTheDocument();
     expect(screen.getByText("待审核协作决策")).toBeInTheDocument();
@@ -264,7 +278,7 @@ describe("AgentWorkspacePage", () => {
         agentId: "agent-codex-main",
         sessionId: "session-1",
         roomId: "room-1",
-        afterEventId: "evt-2"
+        afterEventId: "evt-reply-1"
       })
     );
 

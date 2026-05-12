@@ -924,6 +924,11 @@ body {
   border-color: rgba(196, 138, 30, 0.2);
 }
 
+.workspace-mini-card--replies {
+  background: rgba(237, 249, 246, 0.96);
+  border-color: rgba(45, 143, 121, 0.2);
+}
+
 .workspace-knowledge-row + .workspace-knowledge-row {
   margin-top: 12px;
 }
