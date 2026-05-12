@@ -6,6 +6,7 @@
     "dev:server": "npm --workspace @ma/server run dev",
     "dev:web": "npm --workspace @ma/web run dev",
     "test": "vitest run",
+    "smoke:phase1b": "npm --workspace @ma/server test -- --run apps/server/test/phase-1b-smoke.test.ts --testTimeout 15000",
     "typecheck": "npm run typecheck --workspaces --if-present --include-workspace-root=false"
   },
   "devDependencies": {

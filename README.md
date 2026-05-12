@@ -113,7 +113,10 @@ private memory -> shared candidate -> human review -> shared layer
 ```bash
 npm test
 npm run typecheck
+npm run smoke:phase1b
 ```
+
+`smoke:phase1b` 是当前 Agent 邀请钥匙到房间协同闭环的服务端实战验收入口，覆盖创建邀请、Agent 入房、拉取事件、工作快照、附件消息、共享候选审核和房主强制断连。
 
 按 workspace：
 
