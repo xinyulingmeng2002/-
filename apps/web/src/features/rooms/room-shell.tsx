@@ -21,7 +21,7 @@ import {
   type RoomSocketClient
 } from "../../api/socket";
 import { AgentPanel } from "../agents/agent-panel";
-import { MessageComposer, type MessageComposerSubmit } from "../chat/message-composer";
+import { MessageComposer, type MessageComposerDraft, type MessageComposerSubmit } from "../chat/message-composer";
 import { MessageList, type TimelineMessage } from "../chat/message-list";
 import { ParticipantList, type ParticipantViewModel } from "../participants/participant-list";
 import { RoomList } from "./room-list";
@@ -133,6 +133,15 @@ function getParticipantDisplayName(participantId: string): string {
   return participantId;
 }
 
+function createReplyDraft(message: TimelineMessage): string {
+  const textBody = message.body.trim().replace(/\s+/g, " ");
+  const attachmentNames = message.attachments?.map((attachment) => attachment.name).join(", ");
+  const sourceText = textBody || (attachmentNames ? `[附件] ${attachmentNames}` : "[空消息]");
+  const excerpt = sourceText.length > 80 ? `${sourceText.slice(0, 80)}...` : sourceText;
+
+  return `> 回复 ${message.speakerParticipantId}: ${excerpt}\n\n`;
+}
+
 async function loadAgentPanelData(apiClient: ApiClient, roomId: string): Promise<AgentPanelData> {
   const [
     directoryParticipants,
@@ -238,6 +247,7 @@ export function RoomShell({
   const [privateMemoryOverview, setPrivateMemoryOverview] = useState<PrivateMemoryOverview[]>([]);
   const [workMemory, setWorkMemory] = useState<WorkMemoryRecord | null>(null);
   const [roomSummaries, setRoomSummaries] = useState<RoomSummaryRecord[]>([]);
+  const [composerDraft, setComposerDraft] = useState<MessageComposerDraft | null>(null);
   const socketClientRef = useRef<RoomSocketClient | null>(null);
 
   useEffect(() => {
@@ -497,6 +507,13 @@ export function RoomShell({
     await refreshAgentPanel(activeRoomId);
   }
 
+  function handleReply(message: TimelineMessage) {
+    setComposerDraft({
+      id: `${message.id}:${Date.now()}`,
+      body: createReplyDraft(message)
+    });
+  }
+
   async function handleUpload(response: UploadAttachmentResponse) {
     if (!activeRoomId || activeRoomId === "room-offline") {
       return;
@@ -589,13 +606,14 @@ export function RoomShell({
               </span>
             </div>
           ) : null}
-          <MessageList messages={messages} />
+          <MessageList messages={messages} onReply={handleReply} />
           <MessageComposer
             speakerParticipantId={speakerParticipantId}
             onSend={handleSend}
             onUpload={handleUpload}
             uploadFile={(file) => apiClient.uploadFile(file)}
             mentionTargets={mentionTargets}
+            draft={composerDraft}
             disabled={!activeRoomId}
           />
         </div>

@@ -11,6 +11,7 @@ export type TimelineMessage = {
 
 type MessageListProps = {
   messages: TimelineMessage[];
+  onReply?: (message: TimelineMessage) => void;
 };
 
 function formatSpeakerLabel(participantId: string): string {
@@ -52,7 +53,7 @@ function renderMessageBody(body: string) {
   );
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, onReply }: MessageListProps) {
   if (messages.length === 0) {
     return <div className="empty-state empty-state--timeline">还没有消息，先发一条把链路打通。</div>;
   }
@@ -63,7 +64,19 @@ export function MessageList({ messages }: MessageListProps) {
         <article key={message.id} className={`message-card message-card--${message.kind}`}>
           <header className="message-card__header">
             <span className="speaker-chip">{formatSpeakerLabel(message.speakerParticipantId)}</span>
-            <time dateTime={message.timestamp}>{new Date(message.timestamp).toLocaleTimeString("zh-CN")}</time>
+            <div className="message-card__meta">
+              {onReply && message.kind === "chat" ? (
+                <button
+                  type="button"
+                  className="message-reply-button"
+                  aria-label={`回复 ${formatSpeakerLabel(message.speakerParticipantId)} 的消息`}
+                  onClick={() => onReply(message)}
+                >
+                  回复
+                </button>
+              ) : null}
+              <time dateTime={message.timestamp}>{new Date(message.timestamp).toLocaleTimeString("zh-CN")}</time>
+            </div>
           </header>
           {message.body ? <p className="message-card__body">{renderMessageBody(message.body)}</p> : null}
           {message.attachments?.length ? (

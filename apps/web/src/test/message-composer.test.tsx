@@ -50,4 +50,32 @@ describe("MessageComposer", () => {
       })
     );
   });
+
+  it("applies a reply draft before sending a public follow-up", async () => {
+    const onSend = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <MessageComposer
+        speakerParticipantId="human-1"
+        onSend={onSend}
+        draft={{
+          id: "reply-msg-1",
+          body: "> 回复 agent-realtime: 来自实时链路\n\n"
+        }}
+      />
+    );
+
+    expect(screen.getByRole("textbox")).toHaveValue("> 回复 agent-realtime: 来自实时链路\n\n");
+
+    await user.type(screen.getByRole("textbox"), "我接着这个点说。");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        speakerParticipantId: "human-1",
+        body: "> 回复 agent-realtime: 来自实时链路\n\n我接着这个点说。"
+      })
+    );
+  });
 });

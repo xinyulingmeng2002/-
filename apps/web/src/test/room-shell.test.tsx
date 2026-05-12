@@ -289,6 +289,31 @@ describe("RoomShell", () => {
     });
 
     await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "回复 Agent realtime 的消息" }));
+    });
+
+    expect(screen.getByPlaceholderText("输入你要同步到当前房间的内容")).toHaveValue(
+      "> 回复 agent-realtime: 来自实时链路\n\n"
+    );
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("输入你要同步到当前房间的内容"), {
+        target: {
+          value: "> 回复 agent-realtime: 来自实时链路\n\n我接着这个点说。"
+        }
+      });
+      fireEvent.click(screen.getByRole("button", { name: "发送" }));
+    });
+
+    await waitFor(() => {
+      expect(apiClient.createMessage).toHaveBeenLastCalledWith({
+        roomId: "room-1",
+        speakerParticipantId: "human-1",
+        body: "> 回复 agent-realtime: 来自实时链路\n\n我接着这个点说。"
+      });
+    });
+
+    await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "提交为共享候选" }));
     });
 

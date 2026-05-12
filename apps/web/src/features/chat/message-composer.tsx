@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import type { UploadAttachmentResponse } from "../../api/client";
 import { UploadButton } from "../uploads/upload-button";
@@ -13,12 +13,18 @@ export type MessageComposerMentionTarget = {
   displayName: string;
 };
 
+export type MessageComposerDraft = {
+  id: string;
+  body: string;
+};
+
 type MessageComposerProps = {
   speakerParticipantId: string;
   onSend: (payload: MessageComposerSubmit) => void | Promise<void>;
   onUpload?: (response: UploadAttachmentResponse) => void | Promise<void>;
   uploadFile?: (file: File) => Promise<UploadAttachmentResponse>;
   mentionTargets?: MessageComposerMentionTarget[];
+  draft?: MessageComposerDraft | null;
   disabled?: boolean;
 };
 
@@ -28,10 +34,17 @@ export function MessageComposer({
   onUpload,
   uploadFile,
   mentionTargets = [],
+  draft = null,
   disabled = false
 }: MessageComposerProps) {
   const [body, setBody] = useState("");
   const textareaId = useId();
+
+  useEffect(() => {
+    if (draft) {
+      setBody(draft.body);
+    }
+  }, [draft?.id]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

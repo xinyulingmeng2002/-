@@ -156,6 +156,27 @@ body {
   font-size: 13px;
 }
 
+.message-card__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-reply-button {
+  border: 1px solid rgba(75, 103, 173, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #2d436f;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 9px;
+}
+
+.message-reply-button:hover {
+  background: rgba(31, 59, 115, 0.1);
+}
+
 .message-card__body {
   margin: 0;
   line-height: 1.6;

@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 
 import { MessageList } from "../features/chat/message-list";
 
@@ -21,5 +22,35 @@ describe("MessageList", () => {
 
     expect(screen.getByText("@Codex")).toHaveClass("message-mention");
     expect(screen.getByText("你怎么看这个方向？")).toBeInTheDocument();
+  });
+
+  it("lets the room owner start a public reply from a timeline message", async () => {
+    const onReply = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <MessageList
+        messages={[
+          {
+            id: "msg-1",
+            kind: "chat",
+            body: "来自实时链路",
+            speakerParticipantId: "agent-realtime",
+            timestamp: "2026-05-12T00:00:00.000Z"
+          }
+        ]}
+        onReply={onReply}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "回复 Agent realtime 的消息" }));
+
+    expect(onReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "msg-1",
+        body: "来自实时链路",
+        speakerParticipantId: "agent-realtime"
+      })
+    );
   });
 });
