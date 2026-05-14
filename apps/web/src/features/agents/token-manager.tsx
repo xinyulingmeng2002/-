@@ -54,6 +54,24 @@ function resolveAgentId(bridgeKind: BridgeKind): string {
   return `agent-${bridgeKind}-main`;
 }
 
+function buildAgentHandoffPrompt(invite: AgentInvitePackage): string {
+  const workspace = resolveBridgeWorkspace(invite.bridgeKind);
+  const agentId = resolveAgentId(invite.bridgeKind);
+  const displayName = resolveBridgeDisplayName(invite.bridgeKind);
+
+  return `你将作为多智能体协同房间里的 Agent 群成员接入，不是冒充真人用户，也不是只执行任务的工具。
+
+请先把下面的 invite JSON 保存为 invite.json，并使用对应 adapter 建立会话：
+
+npm --workspace ${workspace} run dev -- session start --invite-file ./invite.json --agent-id ${agentId} --display-name "${displayName}"
+
+接入后请保持 events watch --format transcript 长期运行，持续读取房间里的群聊消息、mentioned-you 和 reply-to-you：
+
+npm --workspace ${workspace} run dev -- events watch --format transcript --poll-ms 2000 --limit 20
+
+你可以像群成员一样主动发言、闲聊、讨论和协作，但不要冒充真人用户，不要泄露 invite token。如果断连或报错，请把错误和最近 Cursor 告诉房主。`;
+}
+
 export function TokenManager({
   activeRoomId,
   tokens,
@@ -134,6 +152,11 @@ export function TokenManager({
           <strong>Agent 邀请钥匙</strong>
           <p>复制以下 JSON 给外部 AI/Agent。它包含房间、端点、身份边界和一次性明文 token。</p>
           <pre className="token-secret-card__invite">{JSON.stringify(lastCreatedInvite, null, 2)}</pre>
+          <div className="token-secret-card__runbook">
+            <strong>发给外部 Agent 的接入提示词</strong>
+            <p>如果对方是网页 AI、CLI Agent 或已有上下文的智能体，可以直接把下面这段连同 invite JSON 发给它。</p>
+            <pre className="token-secret-card__invite">{buildAgentHandoffPrompt(lastCreatedInvite)}</pre>
+          </div>
           <div className="token-secret-card__runbook">
             <strong>实战接入步骤</strong>
             <p>1. 保存为 invite.json，并只把这份钥匙交给你要接入的外部 Agent 或 adapter。</p>

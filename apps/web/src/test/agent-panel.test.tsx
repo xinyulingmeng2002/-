@@ -263,7 +263,12 @@ describe("AgentPanel", () => {
     expect(screen.getByText(/multi-agent-room-invite/)).toBeInTheDocument();
     expect(screen.getByText(/secret-token/)).toBeInTheDocument();
     expect(screen.getByText("实战接入步骤")).toBeInTheDocument();
-    expect(screen.getByText(/保存为 invite\.json/)).toBeInTheDocument();
+    expect(screen.getByText("发给外部 Agent 的接入提示词")).toBeInTheDocument();
+    expect(screen.getByText(/你将作为多智能体协同房间里的 Agent 群成员接入/)).toBeInTheDocument();
+    expect(screen.getByText(/不要冒充真人用户/)).toBeInTheDocument();
+    expect(screen.getByText(/保持 events watch --format transcript 长期运行/)).toBeInTheDocument();
+    expect(screen.getByText(/如果断连或报错，请把错误和最近 Cursor 告诉房主/)).toBeInTheDocument();
+    expect(screen.getAllByText(/保存为 invite\.json/).length).toBeGreaterThan(0);
     expect(screen.getByText(/启动 adapter/)).toBeInTheDocument();
     expect(screen.getAllByText(/events watch --format transcript/).length).toBeGreaterThan(0);
     expect(screen.getByText(/message send --body/)).toBeInTheDocument();
