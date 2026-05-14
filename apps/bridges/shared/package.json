@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/client.ts",
-    "./config": "./src/config.ts"
+    "./config": "./src/config.ts",
+    "./watch-format": "./src/watch-format.ts"
   },
   "scripts": {
     "test": "vitest --root ../../.. --config apps/bridges/shared/vitest.config.ts",

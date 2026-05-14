@@ -1,6 +1,8 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { formatWatchBatchAsTranscript } from "@ma/bridge-shared/watch-format";
+
 import { formatCodexBridgeUsage, parseCodexBridgeCliArgs } from "./config";
 import {
   getCodexBridgeWorkspaceSnapshot,
@@ -104,7 +106,11 @@ export async function runCodexBridgeCli(argv = process.argv.slice(2)): Promise<v
         ...parsed.options,
         signal: abortController.signal,
         onBatch(batch) {
-          console.log(JSON.stringify(batch));
+          console.log(
+            parsed.options.outputFormat === "transcript"
+              ? formatWatchBatchAsTranscript(batch)
+              : JSON.stringify(batch)
+          );
         }
       });
     } finally {

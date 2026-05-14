@@ -1,6 +1,8 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { formatWatchBatchAsTranscript } from "@ma/bridge-shared/watch-format";
+
 import { formatGenericBridgeUsage, parseGenericBridgeCliArgs } from "./config";
 import {
   getGenericBridgeWorkspaceSnapshot,
@@ -109,7 +111,11 @@ export async function runGenericBridgeCli(argv = process.argv.slice(2)): Promise
         ...parsed.options,
         signal: abortController.signal,
         onBatch(batch) {
-          console.log(JSON.stringify(batch));
+          console.log(
+            parsed.options.outputFormat === "transcript"
+              ? formatWatchBatchAsTranscript(batch)
+              : JSON.stringify(batch)
+          );
         }
       });
     } finally {

@@ -128,7 +128,18 @@ describe("openclaw bridge config", () => {
 
   it("parses events watch arguments", () => {
     const parsed = parseOpenClawBridgeCliArgs(
-      ["events", "watch", "--after-event-id", "evt-1", "--limit", "25", "--poll-ms", "500"],
+      [
+        "events",
+        "watch",
+        "--after-event-id",
+        "evt-1",
+        "--limit",
+        "25",
+        "--poll-ms",
+        "500",
+        "--format",
+        "transcript"
+      ],
       {
         MA_BRIDGE_SESSION_FILE: "/tmp/openclaw-session.json"
       },
@@ -142,6 +153,7 @@ describe("openclaw bridge config", () => {
         afterEventId: "evt-1",
         limit: 25,
         pollMs: 500,
+        outputFormat: "transcript",
         roomId: undefined
       }
     });

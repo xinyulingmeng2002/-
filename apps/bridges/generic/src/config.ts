@@ -6,6 +6,8 @@ type EnvLike = Record<string, string | undefined>;
 const DEFAULT_HEARTBEAT_MS = 45_000;
 const DEFAULT_POLL_MS = 2_000;
 
+type WatchOutputFormat = "json" | "transcript";
+
 type StartOptions = {
   baseUrl: string;
   token: string;
@@ -57,6 +59,7 @@ export type GenericBridgeCliCommand =
         afterEventId?: string;
         limit?: number;
         pollMs: number;
+        outputFormat: WatchOutputFormat;
       };
     };
 
@@ -229,7 +232,8 @@ export function parseGenericBridgeCliArgs(
         sessionFilePath,
         afterEventId: flags["after-event-id"],
         limit: Number.isFinite(limitValue) && limitValue && limitValue > 0 ? limitValue : undefined,
-        pollMs: Number.isFinite(pollMsValue) && pollMsValue > 0 ? pollMsValue : DEFAULT_POLL_MS
+        pollMs: Number.isFinite(pollMsValue) && pollMsValue > 0 ? pollMsValue : DEFAULT_POLL_MS,
+        outputFormat: flags.format === "transcript" ? "transcript" : "json"
       }
     };
   }
@@ -243,7 +247,7 @@ export function formatGenericBridgeUsage(): string {
     "  npm --workspace @ma/bridge-generic run dev -- session start --invite-file <invite.json> --agent-id <id>",
     "  npm --workspace @ma/bridge-generic run dev -- message send --body <text>",
     "  npm --workspace @ma/bridge-generic run dev -- events pull --after-event-id <event-id>",
-    "  npm --workspace @ma/bridge-generic run dev -- events watch --poll-ms <ms>",
+    "  npm --workspace @ma/bridge-generic run dev -- events watch --poll-ms <ms> --format json|transcript",
     "  npm --workspace @ma/bridge-generic run dev -- workspace snapshot --event-limit <n>",
     "  npm --workspace @ma/bridge-generic run dev -- session stop",
     "",

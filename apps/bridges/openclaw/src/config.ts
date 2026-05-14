@@ -5,6 +5,8 @@ type EnvLike = Record<string, string | undefined>;
 
 const DEFAULT_POLL_MS = 2_000;
 
+type WatchOutputFormat = "json" | "transcript";
+
 type StartOptions = {
   baseUrl: string;
   token: string;
@@ -51,6 +53,7 @@ export type OpenClawBridgeCliCommand =
         afterEventId?: string;
         limit?: number;
         pollMs: number;
+        outputFormat: WatchOutputFormat;
       };
     }
   | {
@@ -229,7 +232,8 @@ export function parseOpenClawBridgeCliArgs(
         roomId: flags["room-id"],
         afterEventId: flags["after-event-id"],
         limit: Number.isFinite(limitValue) && limitValue && limitValue > 0 ? limitValue : undefined,
-        pollMs: Number.isFinite(pollMs) && pollMs > 0 ? pollMs : DEFAULT_POLL_MS
+        pollMs: Number.isFinite(pollMs) && pollMs > 0 ? pollMs : DEFAULT_POLL_MS,
+        outputFormat: flags.format === "transcript" ? "transcript" : "json"
       }
     };
   }
@@ -272,7 +276,7 @@ export function formatOpenClawBridgeUsage(): string {
     "  npm --workspace @ma/bridge-openclaw run dev -- session start --base-url <url> --token <token> --agent-id <id> --room-id <room>",
     "  npm --workspace @ma/bridge-openclaw run dev -- message send --body <text>",
     "  npm --workspace @ma/bridge-openclaw run dev -- events pull --after-event-id <event-id>",
-    "  npm --workspace @ma/bridge-openclaw run dev -- events watch --after-event-id <event-id> --poll-ms <ms>",
+    "  npm --workspace @ma/bridge-openclaw run dev -- events watch --after-event-id <event-id> --poll-ms <ms> --format json|transcript",
     "  npm --workspace @ma/bridge-openclaw run dev -- workspace snapshot --event-limit <n>",
     "  npm --workspace @ma/bridge-openclaw run dev -- attachment send --file <path> --caption <text>",
     "  npm --workspace @ma/bridge-openclaw run dev -- session stop",

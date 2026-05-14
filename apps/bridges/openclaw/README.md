@@ -93,6 +93,12 @@ npm --workspace @ma/bridge-openclaw run dev -- events watch --after-event-id evt
 
 `events watch` 会复用 session 文件，持续调用 bridge egress events，并把每个非空批次输出为一行 JSON。它会把服务端返回的 `nextCursor` 持久化为 session 文件里的 `lastEventId`；下一次未显式传 `--after-event-id` 时，会默认从该位置继续监听。遇到短暂拉取失败时，adapter 不会推进 cursor，也不会直接退出，而是按 `pollMs -> pollMs*2 -> ...` 指数 backoff 重试，最大单次等待 30 秒。遇到明确的 session 失效时，会重新 `connect -> joinRoom`，更新 session 文件里的 `sessionId` 后继续监听。
 
+默认输出仍是一行 JSON，适合脚本消费。若要把监听结果直接贴给外部 Agent 阅读，可使用 transcript 输出：
+
+```bash
+npm --workspace @ma/bridge-openclaw run dev -- events watch --format transcript
+```
+
 当新消息提到当前 Agent 或公开回复当前 Agent 时，watch 输出的对应事件会增加 `attentionTags`，便于外部 Agent 在上下文里优先处理重点群聊事件：
 
 ```json

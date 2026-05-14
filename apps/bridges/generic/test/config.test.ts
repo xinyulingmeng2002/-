@@ -141,7 +141,18 @@ describe("generic bridge config", () => {
   it("parses event watch arguments", () => {
     expect(
       parseGenericBridgeCliArgs(
-        ["events", "watch", "--after-event-id", "evt-1", "--limit", "20", "--poll-ms", "500"],
+        [
+          "events",
+          "watch",
+          "--after-event-id",
+          "evt-1",
+          "--limit",
+          "20",
+          "--poll-ms",
+          "500",
+          "--format",
+          "transcript"
+        ],
         { MA_BRIDGE_SESSION_FILE: "/tmp/generic-session.json" },
         "/workspace"
       )
@@ -151,7 +162,8 @@ describe("generic bridge config", () => {
         sessionFilePath: "/tmp/generic-session.json",
         afterEventId: "evt-1",
         limit: 20,
-        pollMs: 500
+        pollMs: 500,
+        outputFormat: "transcript"
       }
     });
   });
