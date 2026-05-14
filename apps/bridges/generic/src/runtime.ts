@@ -270,6 +270,58 @@ function hasBatchItems(batch: unknown): boolean {
   return Array.isArray(items) && items.length > 0;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getEventBody(event: unknown): string {
+  const body = (event as { payload?: { body?: unknown } })?.payload?.body;
+  return typeof body === "string" ? body : "";
+}
+
+function resolveAttentionTags(event: unknown, session: GenericBridgeSessionRecord): string[] {
+  const body = getEventBody(event);
+  if (!body) {
+    return [];
+  }
+
+  const names = [session.displayName, session.agentId].filter(Boolean);
+  const tags: string[] = [];
+
+  if (
+    names.some((name) =>
+      new RegExp(`(^|\\s)@${escapeRegExp(name)}(?=$|\\s|[.,!?，。！？:：;；、])`, "u").test(body)
+    )
+  ) {
+    tags.push("mentioned-you");
+  }
+
+  if (
+    names.some((name) =>
+      new RegExp(`^>\\s*回复\\s+${escapeRegExp(name)}\\s*:`, "u").test(body)
+    )
+  ) {
+    tags.push("reply-to-you");
+  }
+
+  return tags;
+}
+
+function annotateWatchedBatch(batch: unknown, session: GenericBridgeSessionRecord): unknown {
+  const items = (batch as { items?: unknown })?.items;
+  if (!Array.isArray(items)) {
+    return batch;
+  }
+
+  return {
+    ...(batch as Record<string, unknown>),
+    items: items.map((item) => {
+      const attentionTags = resolveAttentionTags(item, session);
+      return attentionTags.length > 0 ? { ...(item as Record<string, unknown>), attentionTags } : item;
+    })
+  };
+}
+
 function persistEventCursor(sessionFilePath: string, lastEventId: string | undefined): void {
   if (!lastEventId) {
     return;
@@ -392,7 +444,9 @@ export async function watchGenericBridgeEvents(options: WatchEventsOptions): Pro
     }
 
     if (hasBatchItems(batch)) {
-      await options.onBatch?.(batch);
+      await options.onBatch?.(
+        annotateWatchedBatch(batch, readGenericBridgeSessionFile(options.sessionFilePath))
+      );
     }
 
     afterEventId = resolveNextCursor(batch, afterEventId);

@@ -479,6 +479,85 @@ describe("codex bridge runtime", () => {
     }
   });
 
+  it("marks watched events that mention or reply to the current agent", async () => {
+    const tempDir = createTempDir("ma-codex-bridge-");
+    const sessionFilePath = join(tempDir, "codex-session.json");
+    const abortController = new AbortController();
+    const batches: unknown[] = [];
+    const client = {
+      pullEvents: vi.fn().mockResolvedValue({
+        items: [
+          {
+            eventId: "evt-mentioned",
+            kind: "message.created",
+            roomId: "room-1",
+            payload: {
+              body: "@Codex 你怎么看？",
+              speakerParticipantId: "human-1"
+            }
+          },
+          {
+            eventId: "evt-reply",
+            kind: "message.created",
+            roomId: "room-1",
+            payload: {
+              body: "> 回复 agent-codex-main: 刚才那句\n\n我补充一下。",
+              speakerParticipantId: "human-1"
+            }
+          }
+        ],
+        nextCursor: "evt-reply"
+      })
+    };
+    const sleep = vi.fn().mockImplementation(async () => {
+      abortController.abort();
+    });
+
+    try {
+      const session = {
+        baseUrl: "http://127.0.0.1:3000",
+        token: "secret-token",
+        sessionId: "session-1",
+        agentId: "agent-codex-main",
+        displayName: "Codex",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        heartbeatMs: 1000
+      };
+      writeFileSync(sessionFilePath, JSON.stringify(session, null, 2), "utf8");
+
+      await watchCodexBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        limit: 20,
+        pollMs: 1,
+        signal: abortController.signal,
+        onBatch(batch) {
+          batches.push(batch);
+        },
+        sleep
+      });
+
+      expect(batches).toEqual([
+        {
+          items: [
+            expect.objectContaining({
+              eventId: "evt-mentioned",
+              attentionTags: ["mentioned-you"]
+            }),
+            expect.objectContaining({
+              eventId: "evt-reply",
+              attentionTags: ["reply-to-you"]
+            })
+          ],
+          nextCursor: "evt-reply"
+        }
+      ]);
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("resumes event watching from the persisted cursor", async () => {
     const tempDir = createTempDir("ma-codex-bridge-");
     const sessionFilePath = join(tempDir, "codex-session.json");

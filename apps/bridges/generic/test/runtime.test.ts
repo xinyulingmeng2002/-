@@ -346,6 +346,88 @@ describe("generic bridge runtime", () => {
     }
   });
 
+  it("marks watched events that mention or reply to the current generic agent", async () => {
+    const tempDir = createTempDir();
+    const sessionFilePath = join(tempDir, "generic-session.json");
+    const abortController = new AbortController();
+    const batches: unknown[] = [];
+    const client = {
+      pullEvents: vi.fn().mockResolvedValue({
+        items: [
+          {
+            eventId: "evt-mentioned",
+            kind: "message.created",
+            roomId: "room-1",
+            payload: {
+              body: "@Generic Agent 你怎么看？",
+              speakerParticipantId: "human-1"
+            }
+          },
+          {
+            eventId: "evt-reply",
+            kind: "message.created",
+            roomId: "room-1",
+            payload: {
+              body: "> 回复 agent-generic-main: 刚才那句\n\n我补充一下。",
+              speakerParticipantId: "human-1"
+            }
+          }
+        ],
+        nextCursor: "evt-reply"
+      })
+    };
+    const sleep = vi.fn().mockImplementation(async () => {
+      abortController.abort();
+    });
+
+    try {
+      writeFileSync(
+        sessionFilePath,
+        JSON.stringify({
+          baseUrl: "http://127.0.0.1:5173",
+          token: "invite-token",
+          sessionId: "session-1",
+          agentId: "agent-generic-main",
+          displayName: "Generic Agent",
+          roomId: "room-1",
+          capabilities: ["chat"],
+          heartbeatMs: 10000
+        }),
+        "utf8"
+      );
+
+      await watchGenericBridgeEvents({
+        client: client as never,
+        sessionFilePath,
+        limit: 20,
+        pollMs: 1,
+        signal: abortController.signal,
+        onBatch(batch) {
+          batches.push(batch);
+        },
+        sleep
+      });
+
+      expect(batches).toEqual([
+        {
+          items: [
+            expect.objectContaining({
+              eventId: "evt-mentioned",
+              attentionTags: ["mentioned-you"]
+            }),
+            expect.objectContaining({
+              eventId: "evt-reply",
+              attentionTags: ["reply-to-you"]
+            })
+          ],
+          nextCursor: "evt-reply"
+        }
+      ]);
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("keeps watching after transient pull failures with backoff", async () => {
     const tempDir = createTempDir();
     const sessionFilePath = join(tempDir, "generic-session.json");
