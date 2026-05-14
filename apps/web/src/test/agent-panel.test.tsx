@@ -236,9 +236,12 @@ describe("AgentPanel", () => {
     expect(screen.getByText("实战接入步骤")).toBeInTheDocument();
     expect(screen.getByText(/保存为 invite\.json/)).toBeInTheDocument();
     expect(screen.getByText(/启动 adapter/)).toBeInTheDocument();
-    expect(screen.getAllByText(/events watch/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/events watch --format transcript/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/message send --body/)).toBeInTheDocument();
+    expect(screen.getByText(/确认在线/)).toBeInTheDocument();
     expect(screen.getByText(/查看桥接会话诊断/)).toBeInTheDocument();
     expect(screen.getAllByText(/session stop/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/房主也可以强制断连或撤销 token/)).toBeInTheDocument();
     expect(screen.getByText("候选审核")).toBeInTheDocument();
     expect(screen.getByText("补 rollout checklist")).toBeInTheDocument();
     expect(screen.getByText("共享知识")).toBeInTheDocument();

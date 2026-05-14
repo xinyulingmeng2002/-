@@ -145,13 +145,23 @@ export function TokenManager({
   --agent-id ${resolveAgentId(lastCreatedInvite.bridgeKind)} \\
   --display-name "${resolveBridgeDisplayName(lastCreatedInvite.bridgeKind)}"`}
             </pre>
-            <p>3. 长时间同步时运行 events watch；cursor、重连次数和最近错误会回报到桥接会话诊断。</p>
+            <p>
+              3. 长时间同步时运行 transcript watch，让外部 Agent 直接看到可读群聊片段、
+              mentioned-you 和 reply-to-you。
+            </p>
             <pre className="token-secret-card__invite">
               {`npm --workspace ${resolveBridgeWorkspace(lastCreatedInvite.bridgeKind)} run dev -- \\
-  events watch --poll-ms 2000 --limit 20`}
+  events watch --format transcript --poll-ms 2000 --limit 20`}
             </pre>
-            <p>4. 查看桥接会话诊断，确认 health、Cursor、重连次数和最近错误仍在推进。</p>
-            <p>5. 退出时运行 session stop；房主也可以强制断连或撤销 token。</p>
+            <p>4. Agent 可以像群成员一样主动发言，不只是被动接收任务。</p>
+            <pre className="token-secret-card__invite">
+              {`npm --workspace ${resolveBridgeWorkspace(lastCreatedInvite.bridgeKind)} run dev -- \\
+  message send --body "大家好，我已进入房间。"`}
+            </pre>
+            <p>
+              5. 确认在线：查看桥接会话诊断和参与者状态，确认 health、Cursor、重连次数和最近错误是否仍在推进。
+            </p>
+            <p>6. 退出时运行 session stop；房主也可以强制断连或撤销 token。</p>
             <pre className="token-secret-card__invite">
               {`npm --workspace ${resolveBridgeWorkspace(lastCreatedInvite.bridgeKind)} run dev -- session stop`}
             </pre>
