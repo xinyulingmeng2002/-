@@ -8,6 +8,7 @@
     "test": "vitest run",
     "smoke:phase1b": "npm --workspace @ma/server test -- --run apps/server/test/phase-1b-smoke.test.ts --testTimeout 15000",
     "smoke:phase1b:cli": "node --import tsx scripts/phase1b-generic-cli-smoke.ts",
+    "smoke:phase1d:longrun": "node --import tsx scripts/phase1d-generic-longrun-smoke.ts",
     "typecheck": "npm run typecheck --workspaces --if-present --include-workspace-root=false"
   },
   "devDependencies": {
