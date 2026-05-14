@@ -517,6 +517,10 @@ body {
   gap: 12px;
 }
 
+.agent-status-card__observation {
+  margin-top: 10px;
+}
+
 .agent-status-card p,
 .token-card p,
 .candidate-card p,

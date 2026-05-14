@@ -115,6 +115,29 @@ describe("AgentPanel", () => {
               lastSeenSecondsAgo: 120,
               expiresInSeconds: -1
             }
+          },
+          {
+            id: "session-3",
+            tokenId: "token-3",
+            agentId: "agent-observer",
+            status: "connected",
+            activeRoomIds: ["room-1"],
+            connectedAt: "2026-04-15T12:00:00.000Z",
+            lastSeenAt: "2026-04-15T12:04:00.000Z",
+            expiresAt: "2026-04-15T12:06:00.000Z",
+            health: {
+              state: "online",
+              reason: "heartbeat_fresh",
+              lastSeenSecondsAgo: 5,
+              expiresInSeconds: 115
+            },
+            diagnostics: {
+              lastEventId: "evt-20",
+              reconnectCount: 0,
+              consecutiveFailures: 0,
+              lastError: null,
+              lastReportedAt: "2026-04-15T12:04:00.000Z"
+            }
           }
         ]}
         tokens={[]}
@@ -205,6 +228,12 @@ describe("AgentPanel", () => {
     expect(screen.getByText("Cursor evt-10")).toBeInTheDocument();
     expect(screen.getByText("重连 2 次 · 连续失败 1 次")).toBeInTheDocument();
     expect(screen.getByText("最近错误 bridge_request_failed:503")).toBeInTheDocument();
+    expect(screen.getByText("监听异常")).toBeInTheDocument();
+    expect(screen.getByText("连续失败 1 次，请检查 adapter watch 或网络连接。")).toBeInTheDocument();
+    expect(screen.getByText("心跳过期")).toBeInTheDocument();
+    expect(screen.getByText("建议重启 adapter，或强制断连后重新接入。")).toBeInTheDocument();
+    expect(screen.getByText("监听正常")).toBeInTheDocument();
+    expect(screen.getByText("Cursor evt-20 正在推进，暂无连续失败。")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "打开 Codex 工作台" }));
     expect(onOpenAgentWorkspace).toHaveBeenCalledWith({
       roomId: "room-1",

@@ -97,6 +97,51 @@ function formatBridgeDiagnostics(session: BridgeSessionRecord): string[] {
   return lines;
 }
 
+function resolveBridgeObservation(session: BridgeSessionRecord): {
+  title: string;
+  detail: string;
+  tone: "normal" | "warning" | "offline";
+} {
+  if (session.health?.reason === "heartbeat_expired") {
+    return {
+      title: "心跳过期",
+      detail: "建议重启 adapter，或强制断连后重新接入。",
+      tone: "offline"
+    };
+  }
+
+  if (session.status !== "connected" || session.health?.state === "offline") {
+    return {
+      title: "已断开",
+      detail: "该 Agent 当前不在稳定连接中，可重新发送邀请钥匙接入。",
+      tone: "offline"
+    };
+  }
+
+  const consecutiveFailures = session.diagnostics?.consecutiveFailures ?? 0;
+  if (consecutiveFailures > 0 || session.diagnostics?.lastError) {
+    return {
+      title: "监听异常",
+      detail: `连续失败 ${consecutiveFailures} 次，请检查 adapter watch 或网络连接。`,
+      tone: "warning"
+    };
+  }
+
+  if (session.diagnostics?.lastEventId) {
+    return {
+      title: "监听正常",
+      detail: `Cursor ${session.diagnostics.lastEventId} 正在推进，暂无连续失败。`,
+      tone: "normal"
+    };
+  }
+
+  return {
+    title: "等待事件",
+    detail: "心跳正常，但暂未上报 Cursor；请确认 adapter watch 已启动。",
+    tone: "warning"
+  };
+}
+
 function resolveAgentPresence(
   sessions: BridgeSessionRecord[],
   activeRoomId: string,
@@ -189,58 +234,74 @@ export function AgentPanel({
         </div>
         <div className="agent-status-list">
           {sortedSessions.length === 0 ? <p className="empty-state">暂无 bridge session。</p> : null}
-          {sortedSessions.map((session) => (
-            <article key={session.id} className="agent-status-card">
-              <div>
-                <strong>{resolveDisplayName(participants, session.agentId)}</strong>
-                <p>{session.agentId}</p>
-                <p>{formatSecondsAgo(session.health?.lastSeenSecondsAgo)}</p>
-                <p>{formatExpiresIn(session.health?.expiresInSeconds)}</p>
-                {formatBridgeDiagnostics(session).map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-              </div>
-              <div className="agent-status-card__meta">
-                <span
-                  className={
-                    session.status === "connected"
-                      ? "status-pill status-pill--on"
-                      : "status-pill status-pill--off"
-                  }
-                >
-                  {session.status === "connected" ? "connected" : "offline"}
-                </span>
-                <span>{session.health?.reason ?? "health_unknown"}</span>
-                <span>{session.activeRoomIds.join(", ") || "未加入房间"}</span>
-              </div>
-              {onOpenAgentWorkspace &&
-              session.status === "connected" &&
-              session.activeRoomIds.includes(activeRoomId) ? (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    onOpenAgentWorkspace({
-                      roomId: activeRoomId,
-                      agentId: session.agentId,
-                      sessionId: session.id
-                    })
-                  }
-                >
-                  打开 {resolveDisplayName(participants, session.agentId)} 工作台
-                </button>
-              ) : null}
-              {onDisconnectSession && session.status === "connected" ? (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => void onDisconnectSession(session.id)}
-                >
-                  强制断连 {resolveDisplayName(participants, session.agentId)}
-                </button>
-              ) : null}
-            </article>
-          ))}
+          {sortedSessions.map((session) => {
+            const observation = resolveBridgeObservation(session);
+
+            return (
+              <article key={session.id} className="agent-status-card">
+                <div>
+                  <strong>{resolveDisplayName(participants, session.agentId)}</strong>
+                  <p>{session.agentId}</p>
+                  <p>{formatSecondsAgo(session.health?.lastSeenSecondsAgo)}</p>
+                  <p>{formatExpiresIn(session.health?.expiresInSeconds)}</p>
+                  <div className="agent-status-card__observation">
+                    <span
+                      className={
+                        observation.tone === "normal"
+                          ? "status-pill status-pill--on"
+                          : "status-pill status-pill--off"
+                      }
+                    >
+                      {observation.title}
+                    </span>
+                    <p>{observation.detail}</p>
+                  </div>
+                  {formatBridgeDiagnostics(session).map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
+                <div className="agent-status-card__meta">
+                  <span
+                    className={
+                      session.status === "connected"
+                        ? "status-pill status-pill--on"
+                        : "status-pill status-pill--off"
+                    }
+                  >
+                    {session.status === "connected" ? "connected" : "offline"}
+                  </span>
+                  <span>{session.health?.reason ?? "health_unknown"}</span>
+                  <span>{session.activeRoomIds.join(", ") || "未加入房间"}</span>
+                </div>
+                {onOpenAgentWorkspace &&
+                session.status === "connected" &&
+                session.activeRoomIds.includes(activeRoomId) ? (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      onOpenAgentWorkspace({
+                        roomId: activeRoomId,
+                        agentId: session.agentId,
+                        sessionId: session.id
+                      })
+                    }
+                  >
+                    打开 {resolveDisplayName(participants, session.agentId)} 工作台
+                  </button>
+                ) : null}
+                {onDisconnectSession && session.status === "connected" ? (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void onDisconnectSession(session.id)}
+                  >
+                    强制断连 {resolveDisplayName(participants, session.agentId)}
+                  </button>
+                ) : null}
+              </article>
+            );
+          })}
         </div>
       </section>
 
