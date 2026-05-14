@@ -138,6 +138,49 @@ describe("generic bridge runtime", () => {
     }
   });
 
+  it("ignores heartbeat ticks after an external stop removes the generic session file", async () => {
+    const tempDir = createTempDir();
+    const sessionFilePath = join(tempDir, "generic-session.json");
+    let intervalCallback: (() => void) | undefined;
+    const client = {
+      connect: vi.fn().mockResolvedValue({ session: { id: "session-1" } }),
+      joinRoom: vi.fn().mockResolvedValue({ id: "session-1", activeRoomIds: ["room-1"] }),
+      heartbeat: vi.fn(),
+      disconnect: vi.fn().mockResolvedValue({ id: "session-1", status: "disconnected" })
+    };
+    const onSessionFileMissing = vi.fn();
+
+    try {
+      const handle = await runGenericBridgeSession({
+        client: client as never,
+        baseUrl: "http://127.0.0.1:5173",
+        token: "invite-token",
+        agentId: "agent-generic-main",
+        displayName: "Generic Agent",
+        roomId: "room-1",
+        capabilities: ["chat"],
+        sessionFilePath,
+        heartbeatMs: 10_000,
+        onSessionFileMissing,
+        setIntervalFn: ((callback: () => void) => {
+          intervalCallback = callback;
+          return 1 as never;
+        }) as never,
+        clearIntervalFn: vi.fn() as never
+      });
+
+      rmSync(sessionFilePath, { force: true });
+
+      expect(() => intervalCallback?.()).not.toThrow();
+      expect(client.heartbeat).not.toHaveBeenCalled();
+      expect(onSessionFileMissing).toHaveBeenCalledOnce();
+
+      await handle.shutdown();
+    } finally {
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("sends a message through the persisted generic session", async () => {
     const tempDir = createTempDir();
     const sessionFilePath = join(tempDir, "generic-session.json");

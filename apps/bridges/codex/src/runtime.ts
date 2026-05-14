@@ -89,6 +89,7 @@ type StartSessionOptions = {
   capabilities?: string[];
   sessionFilePath: string;
   heartbeatMs?: number;
+  onSessionFileMissing?: () => void;
   logger?: Logger;
   setIntervalFn?: typeof setInterval;
   clearIntervalFn?: typeof clearInterval;
@@ -179,6 +180,10 @@ function buildDiagnostics(session: CodexBridgeSessionRecord): BridgeDiagnosticsI
   return Object.keys(diagnostics).length > 0 ? diagnostics : undefined;
 }
 
+function isMissingSessionFile(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "ENOENT";
+}
+
 async function disconnectCodexBridgeSession(
   client: CodexBridgeClient,
   sessionId: string,
@@ -243,7 +248,19 @@ export async function runCodexBridgeSession(
   const setIntervalFn = options.setIntervalFn ?? setInterval;
   const clearIntervalFn = options.clearIntervalFn ?? clearInterval;
   const intervalHandle = setIntervalFn(() => {
-    const currentSession = readCodexBridgeSessionFile(options.sessionFilePath);
+    let currentSession: CodexBridgeSessionRecord;
+    try {
+      currentSession = readCodexBridgeSessionFile(options.sessionFilePath);
+    } catch (error) {
+      if (isMissingSessionFile(error)) {
+        clearIntervalFn(intervalHandle);
+        options.onSessionFileMissing?.();
+        return;
+      }
+
+      throw error;
+    }
+
     void client.heartbeat({
       sessionId: currentSession.sessionId,
       agentId: currentSession.agentId,

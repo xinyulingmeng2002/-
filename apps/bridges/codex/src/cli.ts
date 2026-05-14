@@ -27,7 +27,10 @@ async function readStdinBody(): Promise<string> {
   return body.trim();
 }
 
-async function waitForShutdown(shutdown: () => Promise<void>): Promise<void> {
+async function waitForShutdown(
+  shutdown: () => Promise<void>,
+  externalStop?: Promise<void>
+): Promise<void> {
   await new Promise<void>((resolvePromise, rejectPromise) => {
     let finished = false;
 
@@ -52,12 +55,23 @@ async function waitForShutdown(shutdown: () => Promise<void>): Promise<void> {
       }
     };
 
+    const finishWithoutShutdown = () => {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      cleanup();
+      resolvePromise();
+    };
+
     const onSignal = () => {
       void stop();
     };
 
     process.on("SIGINT", onSignal);
     process.on("SIGTERM", onSignal);
+    void externalStop?.then(finishWithoutShutdown, rejectPromise);
   });
 }
 
@@ -65,10 +79,17 @@ export async function runCodexBridgeCli(argv = process.argv.slice(2)): Promise<v
   const parsed = parseCodexBridgeCliArgs(argv, process.env, process.cwd());
 
   if (parsed.kind === "session.start") {
-    const handle = await runCodexBridgeSession(parsed.options);
+    let resolveExternalStop: (() => void) | undefined;
+    const externalStop = new Promise<void>((resolvePromise) => {
+      resolveExternalStop = resolvePromise;
+    });
+    const handle = await runCodexBridgeSession({
+      ...parsed.options,
+      onSessionFileMissing: resolveExternalStop
+    });
     console.log(`codex bridge connected: ${handle.session.sessionId}`);
     console.log(`session file: ${handle.session.agentId} -> ${parsed.options.sessionFilePath}`);
-    await waitForShutdown(handle.shutdown);
+    await waitForShutdown(handle.shutdown, externalStop);
     return;
   }
 

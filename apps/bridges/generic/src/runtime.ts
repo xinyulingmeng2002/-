@@ -66,6 +66,7 @@ type StartSessionOptions = {
   capabilities: string[];
   sessionFilePath: string;
   heartbeatMs: number;
+  onSessionFileMissing?: () => void;
   setIntervalFn?: typeof setInterval;
   clearIntervalFn?: typeof clearInterval;
 };
@@ -145,6 +146,10 @@ function buildDiagnostics(session: GenericBridgeSessionRecord): BridgeDiagnostic
   return Object.keys(diagnostics).length > 0 ? diagnostics : undefined;
 }
 
+function isMissingSessionFile(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "ENOENT";
+}
+
 export async function runGenericBridgeSession(
   options: StartSessionOptions
 ): Promise<RunningGenericBridgeSession> {
@@ -184,7 +189,19 @@ export async function runGenericBridgeSession(
   const setIntervalFn = options.setIntervalFn ?? setInterval;
   const clearIntervalFn = options.clearIntervalFn ?? clearInterval;
   const intervalHandle = setIntervalFn(() => {
-    const currentSession = readGenericBridgeSessionFile(options.sessionFilePath);
+    let currentSession: GenericBridgeSessionRecord;
+    try {
+      currentSession = readGenericBridgeSessionFile(options.sessionFilePath);
+    } catch (error) {
+      if (isMissingSessionFile(error)) {
+        clearIntervalFn(intervalHandle);
+        options.onSessionFileMissing?.();
+        return;
+      }
+
+      throw error;
+    }
+
     void client.heartbeat({
       sessionId: currentSession.sessionId,
       agentId: currentSession.agentId,
