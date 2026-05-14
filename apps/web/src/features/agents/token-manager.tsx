@@ -83,6 +83,7 @@ export function TokenManager({
   const [allowedRoomIds, setAllowedRoomIds] = useState(activeRoomId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastCreatedInvite, setLastCreatedInvite] = useState<AgentInvitePackage | null>(null);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   useEffect(() => {
     setAllowedRoomIds((current) => (current ? current : activeRoomId));
@@ -101,10 +102,23 @@ export function TokenManager({
 
       setLabel("");
       setLastCreatedInvite(created.invite);
+      setCopyStatus(null);
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  async function handleCopy(label: string, content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopyStatus(`已复制${label}`);
+    } catch {
+      setCopyStatus("复制失败，请手动复制");
+    }
+  }
+
+  const inviteJson = lastCreatedInvite ? JSON.stringify(lastCreatedInvite, null, 2) : "";
+  const handoffPrompt = lastCreatedInvite ? buildAgentHandoffPrompt(lastCreatedInvite) : "";
 
   return (
     <section className="agent-section">
@@ -151,11 +165,32 @@ export function TokenManager({
         <div className="token-secret-card">
           <strong>Agent 邀请钥匙</strong>
           <p>复制以下 JSON 给外部 AI/Agent。它包含房间、端点、身份边界和一次性明文 token。</p>
-          <pre className="token-secret-card__invite">{JSON.stringify(lastCreatedInvite, null, 2)}</pre>
+          <pre className="token-secret-card__invite">{inviteJson}</pre>
+          <div className="token-secret-card__actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void handleCopy("邀请 JSON", inviteJson)}
+            >
+              复制邀请 JSON
+            </button>
+            {copyStatus === "已复制邀请 JSON" ? <span>{copyStatus}</span> : null}
+          </div>
           <div className="token-secret-card__runbook">
             <strong>发给外部 Agent 的接入提示词</strong>
             <p>如果对方是网页 AI、CLI Agent 或已有上下文的智能体，可以直接把下面这段连同 invite JSON 发给它。</p>
-            <pre className="token-secret-card__invite">{buildAgentHandoffPrompt(lastCreatedInvite)}</pre>
+            <pre className="token-secret-card__invite">{handoffPrompt}</pre>
+            <div className="token-secret-card__actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => void handleCopy("接入提示词", handoffPrompt)}
+              >
+                复制接入提示词
+              </button>
+              {copyStatus === "已复制接入提示词" ? <span>{copyStatus}</span> : null}
+              {copyStatus === "复制失败，请手动复制" ? <span>{copyStatus}</span> : null}
+            </div>
           </div>
           <div className="token-secret-card__runbook">
             <strong>实战接入步骤</strong>

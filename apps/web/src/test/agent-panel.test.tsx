@@ -6,6 +6,13 @@ import { AgentPanel } from "../features/agents/agent-panel";
 describe("AgentPanel", () => {
   it("renders online agents, bridge token actions, and candidate review actions", async () => {
     window.location.hash = "#candidate-cand-1";
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText
+      }
+    });
     const onAcceptCandidate = vi.fn().mockResolvedValue(undefined);
     const onRejectCandidate = vi.fn().mockResolvedValue(undefined);
     const onSharePrivateMemory = vi.fn().mockResolvedValue(undefined);
@@ -276,6 +283,29 @@ describe("AgentPanel", () => {
     expect(screen.getByText(/查看桥接会话诊断/)).toBeInTheDocument();
     expect(screen.getAllByText(/session stop/).length).toBeGreaterThan(0);
     expect(screen.getByText(/房主也可以强制断连或撤销 token/)).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "复制邀请 JSON" }));
+    });
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('"token": "secret-token"'));
+    });
+    expect(screen.getByText("已复制邀请 JSON")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "复制接入提示词" }));
+    });
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith(
+        expect.stringContaining("你将作为多智能体协同房间里的 Agent 群成员接入")
+      );
+    });
+    expect(screen.getByText("已复制接入提示词")).toBeInTheDocument();
+    writeText.mockRejectedValueOnce(new Error("clipboard denied"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "复制邀请 JSON" }));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("复制失败，请手动复制")).toBeInTheDocument();
+    });
     expect(screen.getByText("候选审核")).toBeInTheDocument();
     expect(screen.getByText("补 rollout checklist")).toBeInTheDocument();
     expect(screen.getByText("共享知识")).toBeInTheDocument();

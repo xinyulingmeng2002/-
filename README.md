@@ -51,7 +51,7 @@ Vite 已代理 `/api` 与 `/socket.io` 到本地服务端，直接打开前端�
 
 1. 在前端右侧 `接入令牌` 面板创建 Agent 邀请钥匙，或直接调用 `POST /api/bridge-tokens`
 2. 记录创建返回的 `invite` JSON；它包含房间、端点、身份边界和一次性明文 `token`
-3. 把 `invite` JSON 和页面生成的“发给外部 Agent 的接入提示词”交给正在运行上下文的外部 AI/Agent，或在适配器壳里使用 `@ma/bridge-shared` 构造 client
+3. 通过页面复制 `invite` JSON 和“发给外部 Agent 的接入提示词”，交给正在运行上下文的外部 AI/Agent，或在适配器壳里使用 `@ma/bridge-shared` 构造 client
 4. 调用 `connect({ agentId, displayName, capabilities })`
 5. 保存返回的 `session.id`
 6. 调用 `joinRoom({ sessionId, agentId, roomId })`
