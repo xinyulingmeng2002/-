@@ -13,11 +13,11 @@ Phase 1A 已合并到 `main` 的独立协作台底座，包含：
 
 - Phase 1A 基础线已经完成并合并：空间 / 房间、消息、附件、Web 时间线、参与者、bridge token/session、候选审核、共享知识、工作记忆、房间摘要、`L3` 私有记忆受控工作面
 - Phase 1B 外部 Agent 实战接入闭环已经收口：Agent 邀请钥匙、bridge token/session、房间绑定、事件拉取、workspace snapshot、adapter `events watch`、cursor 持久化、心跳诊断、CLI smoke 与实战 Runbook
-- Phase 1C 核心能力已完成，当前处于收束验收期：已补齐成员可见性、指名发言、mention 高亮、公开回复引用、Agent 工作台提及 / 回复聚合、成员状态、成员卡工作台入口、结构化 mention / reply、adapter transcript 与结构化 attentionTags 等群聊体验
+- Phase 1C 工程侧已完成并通过最终自动化验收：已补齐成员可见性、指名发言、mention 高亮、公开回复引用、Agent 工作台提及 / 回复聚合、成员状态、成员卡工作台入口、结构化 mention / reply、adapter transcript 与结构化 attentionTags 等群聊体验
 - 当前主线未变：这是通用多 Agent 协作平台，和秋灵本体小窝没有架构从属或业务绑定关系；项目只是物理上放在同一工作区根目录附近
 - OpenClaw / Codex 是首批示范适配器，不是平台核心边界；后续应允许用户按房间选择、邀请、启用或移除任意符合 bridge 边界的 Agent
 - 当前复盘入口：`docs/2026-05-14-多智能体协同-Phase-1C收束与Phase-1D入口评估.md`
-- 下一阶段优先级：完成 Phase 1C 最终验收清单与真实接入长跑记录；满足入口条件后进入 Phase 1D“真实长期运行与接入稳定性”
+- 下一阶段优先级：进入 Phase 1D“真实长期运行与接入稳定性”；优先补真实浏览器人工长跑、adapter 长期运行可观测性和房主接入路径产品化
 
 ## 安装
 

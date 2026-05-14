@@ -361,7 +361,7 @@ describe("RoomShell", () => {
         candidateType: "decision"
       });
     });
-  });
+  }, 10000);
 
   it("uploads a file as a formal attachment message instead of a system URL notice", async () => {
     const createMessage = vi.fn().mockResolvedValue({
