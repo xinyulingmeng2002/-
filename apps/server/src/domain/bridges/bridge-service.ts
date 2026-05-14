@@ -1,6 +1,7 @@
 import type { RoomEventRecord } from "../messages/event-log-store";
 import type {
   MessageAttachmentInput,
+  MessageMentionInput,
   MessageService
 } from "../messages/message-service";
 import type { RoomSummaryStore } from "../memory/room-summary-store";
@@ -60,6 +61,8 @@ type JoinRoomInput = SessionInput & {
 type SendMessageInput = JoinRoomInput & {
   body: string;
   attachments?: MessageAttachmentInput[];
+  mentions?: MessageMentionInput[];
+  replyToMessageId?: string;
 };
 
 type PullRoomEventsInput = SessionInput & {
@@ -214,7 +217,9 @@ export class BridgeService {
       roomId: input.roomId,
       speakerParticipantId: input.agentId,
       body: input.body,
-      attachments: input.attachments
+      attachments: input.attachments,
+      mentions: input.mentions,
+      replyToMessageId: input.replyToMessageId
     });
 
     const refreshed = this.bridgeSessionStore.heartbeat({

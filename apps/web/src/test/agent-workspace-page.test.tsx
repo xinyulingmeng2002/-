@@ -148,6 +148,17 @@ describe("AgentWorkspacePage", () => {
       ],
       recentEvents: [
         {
+          eventId: "evt-agent-original",
+          kind: "message.created",
+          roomId: "room-1",
+          timestamp: "2026-05-10T00:00:00.500Z",
+          payload: {
+            messageId: "msg-agent-original",
+            speakerParticipantId: "agent-codex-main",
+            body: "这是 Codex 之前发出的消息。"
+          }
+        },
+        {
           eventId: "evt-2",
           kind: "message.created",
           roomId: "room-1",
@@ -168,9 +179,33 @@ describe("AgentWorkspacePage", () => {
             speakerParticipantId: "human-1",
             body: "> 回复 agent-codex-main: 我刚才的观点\n\n我接着这个点补一句。"
           }
+        },
+        {
+          eventId: "evt-structured-mention",
+          kind: "message.created",
+          roomId: "room-1",
+          timestamp: "2026-05-10T00:00:02.000Z",
+          payload: {
+            messageId: "msg-structured-mention",
+            speakerParticipantId: "human-1",
+            body: "结构化提及正文不包含 at 符号。",
+            mentions: [{ participantId: "agent-codex-main", displayName: "Codex" }]
+          }
+        },
+        {
+          eventId: "evt-structured-reply",
+          kind: "message.created",
+          roomId: "room-1",
+          timestamp: "2026-05-10T00:00:03.000Z",
+          payload: {
+            messageId: "msg-structured-reply",
+            speakerParticipantId: "human-1",
+            body: "结构化回复正文不包含引用块。",
+            replyToMessageId: "msg-agent-original"
+          }
         }
       ],
-      nextCursor: "evt-reply-1"
+      nextCursor: "evt-structured-reply"
     });
     vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
       agent: {
@@ -263,9 +298,11 @@ describe("AgentWorkspacePage", () => {
     expect(screen.getByLabelText("消息内容")).toHaveValue("@OpenClaw ");
     expect(screen.getByText("提到我的消息")).toBeInTheDocument();
     expect(screen.getAllByText("@Codex 这条消息需要你回应。").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("结构化提及正文不包含 at 符号。").length).toBeGreaterThan(1);
     expect(screen.getByText("回复我的消息")).toBeInTheDocument();
     expect(screen.getAllByText(/回复 agent-codex-main: 我刚才的观点/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/我接着这个点补一句。/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("结构化回复正文不包含引用块。").length).toBeGreaterThan(1);
     fireEvent.click(screen.getByRole("button", { name: "引用回复 evt-2" }));
     expect(screen.getByLabelText("消息内容")).toHaveValue(
       "> 回复 human-1: @Codex 这条消息需要你回应。\n\n"
@@ -286,7 +323,7 @@ describe("AgentWorkspacePage", () => {
         agentId: "agent-codex-main",
         sessionId: "session-1",
         roomId: "room-1",
-        afterEventId: "evt-reply-1"
+        afterEventId: "evt-structured-reply"
       })
     );
 
@@ -310,12 +347,33 @@ describe("AgentWorkspacePage", () => {
         expiresAt: "2026-05-10T00:02:00.000Z"
       },
       room: { id: "room-1" },
-      participants: [],
+      participants: [
+        {
+          id: "agent-openclaw-main",
+          type: "agent",
+          displayName: "OpenClaw",
+          bridgeKind: "openclaw",
+          capabilities: ["chat"],
+          lastSeenAt: "2026-05-10T00:00:00.000Z"
+        }
+      ],
       latestSummary: null,
       workMemory: null,
       sharedKnowledge: [],
       memoryCandidates: [],
-      recentEvents: [],
+      recentEvents: [
+        {
+          eventId: "evt-mentioned-for-reply",
+          kind: "message.created",
+          roomId: "room-1",
+          timestamp: "2026-05-10T00:00:01.000Z",
+          payload: {
+            messageId: "msg-mentioned-for-reply",
+            speakerParticipantId: "human-1",
+            body: "@Codex 帮我看一下这个点。"
+          }
+        }
+      ],
       nextCursor: null
     });
     vi.mocked(fetchBridgeWorkspaceSnapshot).mockResolvedValueOnce({
@@ -356,7 +414,9 @@ describe("AgentWorkspacePage", () => {
       payload: {
         messageId: "msg-3",
         speakerParticipantId: "agent-codex-main",
-        body: "开始接续。"
+        body: "@OpenClaw > 回复 human-1: @Codex 帮我看一下这个点。",
+        mentions: [{ participantId: "agent-openclaw-main", displayName: "OpenClaw" }],
+        replyToMessageId: "msg-mentioned-for-reply"
       }
     });
     vi.mocked(fetchBridgeWorkspaceEvents).mockResolvedValueOnce({
@@ -377,11 +437,8 @@ describe("AgentWorkspacePage", () => {
       await Promise.resolve();
     });
 
-    fireEvent.change(screen.getByLabelText("消息内容"), {
-      target: {
-        value: "开始接续。"
-      }
-    });
+    fireEvent.click(screen.getByRole("button", { name: "引用回复 evt-mentioned-for-reply" }));
+    fireEvent.click(screen.getByRole("button", { name: "对 OpenClaw 说" }));
     fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
 
     await act(async () => {
@@ -394,10 +451,12 @@ describe("AgentWorkspacePage", () => {
         agentId: "agent-codex-main",
         sessionId: "session-1",
         roomId: "room-1",
-        body: "开始接续。"
+        body: "@OpenClaw > 回复 human-1: @Codex 帮我看一下这个点。",
+        mentions: [{ participantId: "agent-openclaw-main", displayName: "OpenClaw" }],
+        replyToMessageId: "msg-mentioned-for-reply"
       })
     );
-    expect(screen.getByText("开始接续。")).toBeInTheDocument();
+    expect(screen.getByText(/@OpenClaw > 回复 human-1: @Codex 帮我看一下这个点/)).toBeInTheDocument();
     expect(fetchBridgeWorkspaceSnapshot).toHaveBeenCalledTimes(2);
     expect(fetchBridgeWorkspaceEvents).toHaveBeenCalledWith(
       expect.objectContaining({

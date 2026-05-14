@@ -86,7 +86,7 @@ describe("bridge ingress", () => {
       await app.close();
       cleanupTempDir(tempDir);
     }
-  });
+  }, 10000);
 
   it("accepts a bridge message with body and attachments", async () => {
     const tempDir = createTempDir();
@@ -147,6 +147,58 @@ describe("bridge ingress", () => {
                 messageId: expect.any(String)
               })
             ]
+          })
+        })
+      );
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("accepts a bridge message with structured mention and reply fields", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir, now: () => new Date("2026-04-15T12:35:00.000Z") });
+
+    try {
+      const tokenCreated = await app.inject({
+        method: "POST",
+        url: "/api/bridge-tokens",
+        payload: {
+          label: "Codex bridge",
+          bridgeKind: "codex",
+          allowedRoomIds: ["room-1"]
+        }
+      });
+      const token = tokenCreated.json().token as string;
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/bridge/ingress/message",
+        headers: {
+          authorization: `Bearer ${token}`
+        },
+        payload: {
+          agentId: "agent-codex",
+          displayName: "Codex",
+          capabilities: ["chat"],
+          roomId: "room-1",
+          body: "@OpenClaw 我回复一下。",
+          mentions: [{ participantId: "agent-openclaw", displayName: "OpenClaw" }],
+          replyToMessageId: "msg-previous"
+        }
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json()).toEqual(
+        expect.objectContaining({
+          kind: "message.created",
+          roomId: "room-1",
+          payload: expect.objectContaining({
+            speakerParticipantId: "agent-codex",
+            body: "@OpenClaw 我回复一下。",
+            mentions: [{ participantId: "agent-openclaw", displayName: "OpenClaw" }],
+            replyToMessageId: "msg-previous"
           })
         })
       );

@@ -17,12 +17,21 @@ type AttachmentPayload = {
   sizeBytes: number;
 };
 
+type MentionPayload = {
+  participantId: string;
+  displayName: string;
+};
+
 type BridgeDiagnosticsPayload = {
   lastEventId?: string;
   reconnectCount?: number;
   consecutiveFailures?: number;
   lastError?: string | null;
 };
+
+const MAX_MENTION_ID_LENGTH = 128;
+const MAX_MENTION_DISPLAY_NAME_LENGTH = 128;
+const MAX_REPLY_TO_MESSAGE_ID_LENGTH = 128;
 
 function parseDiagnostics(value: unknown): BridgeDiagnosticsPayload | null | undefined {
   if (value === undefined) {
@@ -239,6 +248,8 @@ export const bridgeIngressRoutes: FastifyPluginAsync<BridgeIngressRoutesOptions>
           roomId?: unknown;
           body?: unknown;
           attachments?: unknown;
+          mentions?: unknown;
+          replyToMessageId?: unknown;
         }
       | undefined;
 
@@ -299,6 +310,52 @@ export const bridgeIngressRoutes: FastifyPluginAsync<BridgeIngressRoutesOptions>
       attachments = parsedAttachments as AttachmentPayload[];
     }
 
+    let mentions: MentionPayload[] | undefined;
+    if (payload.mentions !== undefined) {
+      if (!Array.isArray(payload.mentions)) {
+        return reply.code(400).send({ error: "mentions must be an array" });
+      }
+
+      const parsedMentions = payload.mentions.map((mention) => {
+        if (
+          typeof mention !== "object" ||
+          mention === null ||
+          typeof mention.participantId !== "string" ||
+          mention.participantId.length === 0 ||
+          mention.participantId.length > MAX_MENTION_ID_LENGTH ||
+          typeof mention.displayName !== "string" ||
+          mention.displayName.length === 0 ||
+          mention.displayName.length > MAX_MENTION_DISPLAY_NAME_LENGTH
+        ) {
+          return null;
+        }
+
+        return {
+          participantId: mention.participantId,
+          displayName: mention.displayName
+        } satisfies MentionPayload;
+      });
+
+      if (parsedMentions.some((mention) => mention === null)) {
+        return reply.code(400).send({ error: "mentions contain invalid items" });
+      }
+
+      mentions = parsedMentions as MentionPayload[];
+    }
+
+    let replyToMessageId: string | undefined;
+    if (payload.replyToMessageId !== undefined) {
+      if (
+        typeof payload.replyToMessageId !== "string" ||
+        payload.replyToMessageId.length === 0 ||
+        payload.replyToMessageId.length > MAX_REPLY_TO_MESSAGE_ID_LENGTH
+      ) {
+        return reply.code(400).send({ error: `replyToMessageId must be 1-${MAX_REPLY_TO_MESSAGE_ID_LENGTH} chars` });
+      }
+
+      replyToMessageId = payload.replyToMessageId;
+    }
+
     if (payload.body.trim().length === 0 && (!attachments || attachments.length === 0)) {
       return reply.code(400).send({ error: "body or attachments are required" });
     }
@@ -312,7 +369,9 @@ export const bridgeIngressRoutes: FastifyPluginAsync<BridgeIngressRoutesOptions>
         capabilities: (payload.capabilities as string[] | undefined) ?? [],
         roomId: payload.roomId,
         body: payload.body,
-        attachments
+        attachments,
+        mentions,
+        replyToMessageId
       });
 
       return reply.code(201).send(event);

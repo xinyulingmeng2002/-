@@ -132,6 +132,60 @@ describe("bridge workspace client", () => {
     expect(sent.payload.body).toBe("开始接续。");
   });
 
+  it("sends a bridge workspace message with structured mention and reply fields", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        eventId: "evt-4",
+        kind: "message.created",
+        roomId: "room-1",
+        timestamp: "2026-05-10T00:00:06.000Z",
+        payload: {
+          messageId: "msg-4",
+          speakerParticipantId: "agent-codex-main",
+          body: "@OpenClaw 我接着这个点说。",
+          mentions: [{ participantId: "agent-openclaw-main", displayName: "OpenClaw" }],
+          replyToMessageId: "msg-2"
+        }
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const sent = await sendBridgeWorkspaceMessage({
+      baseUrl: "http://127.0.0.1:3000",
+      bridgeToken: "secret-token",
+      agentId: "agent-codex-main",
+      sessionId: "session-1",
+      roomId: "room-1",
+      body: "@OpenClaw 我接着这个点说。",
+      mentions: [{ participantId: "agent-openclaw-main", displayName: "OpenClaw" }],
+      replyToMessageId: "msg-2"
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3000/api/bridge/ingress/message", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: "Bearer secret-token",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        agentId: "agent-codex-main",
+        sessionId: "session-1",
+        roomId: "room-1",
+        body: "@OpenClaw 我接着这个点说。",
+        mentions: [{ participantId: "agent-openclaw-main", displayName: "OpenClaw" }],
+        replyToMessageId: "msg-2"
+      })
+    });
+    expect(sent.payload).toEqual(
+      expect.objectContaining({
+        mentions: [{ participantId: "agent-openclaw-main", displayName: "OpenClaw" }],
+        replyToMessageId: "msg-2"
+      })
+    );
+  });
+
   it("uploads a workspace file through the canonical upload endpoint", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

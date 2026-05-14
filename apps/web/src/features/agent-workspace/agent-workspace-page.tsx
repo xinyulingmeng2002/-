@@ -54,6 +54,13 @@ function escapeRegExp(value: string): string {
 }
 
 function isMentionedForAgent(event: MessageEventRecord, snapshot: BridgeWorkspaceSnapshot): boolean {
+  if (event.payload.mentions && event.payload.mentions.length > 0) {
+    return event.payload.mentions.some(
+      (mention) =>
+        mention.participantId === snapshot.agent.id || mention.displayName === snapshot.agent.displayName
+    );
+  }
+
   const body = event.payload.body ?? "";
   const names = [snapshot.agent.displayName, snapshot.agent.id].filter(Boolean);
 
@@ -64,7 +71,18 @@ function isMentionedForAgent(event: MessageEventRecord, snapshot: BridgeWorkspac
   });
 }
 
-function isReplyForAgent(event: MessageEventRecord, snapshot: BridgeWorkspaceSnapshot): boolean {
+function isReplyForAgent(
+  event: MessageEventRecord,
+  snapshot: BridgeWorkspaceSnapshot,
+  events: MessageEventRecord[]
+): boolean {
+  if (event.payload.replyToMessageId) {
+    const repliedEvent = events.find((candidate) => candidate.payload.messageId === event.payload.replyToMessageId);
+    if (repliedEvent) {
+      return repliedEvent.payload.speakerParticipantId === snapshot.agent.id;
+    }
+  }
+
   const body = event.payload.body ?? "";
   const names = [snapshot.agent.displayName, snapshot.agent.id].filter(Boolean);
 
@@ -109,14 +127,27 @@ function renderEvent(event: MessageEventRecord) {
   );
 }
 
-function createWorkspaceReplyDraft(event: MessageEventRecord): string {
+type WorkspaceMentionDraft = {
+  participantId: string;
+  displayName: string;
+};
+
+type WorkspaceReplyDraft = {
+  body: string;
+  replyToMessageId: string;
+};
+
+function createWorkspaceReplyDraft(event: MessageEventRecord): WorkspaceReplyDraft {
   const speaker = event.payload.speakerParticipantId ?? "unknown";
   const body = (event.payload.body ?? "").trim().replace(/\s+/g, " ");
   const attachmentNames = event.payload.attachments?.map((attachment) => attachment.name).join(", ");
   const sourceText = body || (attachmentNames ? `[附件] ${attachmentNames}` : "[空消息]");
   const excerpt = sourceText.length > 80 ? `${sourceText.slice(0, 80)}...` : sourceText;
 
-  return `> 回复 ${speaker}: ${excerpt}\n\n`;
+  return {
+    body: `> 回复 ${speaker}: ${excerpt}\n\n`,
+    replyToMessageId: event.payload.messageId ?? event.eventId
+  };
 }
 
 function insertWorkspaceMention(current: string, displayName: string): string {
@@ -150,11 +181,13 @@ export function AgentWorkspacePage() {
   const [events, setEvents] = useState<MessageEventRecord[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [messageBody, setMessageBody] = useState("");
+  const [messageMentions, setMessageMentions] = useState<WorkspaceMentionDraft[]>([]);
+  const [replyToMessageId, setReplyToMessageId] = useState<string | undefined>();
   const [privateMemoryOverview, setPrivateMemoryOverview] = useState<PrivateMemoryOverview[]>([]);
   const [statusText, setStatusText] = useState("等待 bridge token 与 session 信息。");
   const [errorText, setErrorText] = useState("");
   const mentionedEvents = snapshot ? events.filter((event) => isMentionedForAgent(event, snapshot)) : [];
-  const repliedEvents = snapshot ? events.filter((event) => isReplyForAgent(event, snapshot)) : [];
+  const repliedEvents = snapshot ? events.filter((event) => isReplyForAgent(event, snapshot, events)) : [];
   const mentionTargets =
     snapshot?.participants.filter((participant) => participant.id !== snapshot.agent.id) ?? [];
 
@@ -250,18 +283,23 @@ export function AgentWorkspacePage() {
       setErrorText("消息内容不能为空。");
       return;
     }
+    const activeMentions = messageMentions.filter((mention) => body.includes(`@${mention.displayName}`));
 
     setErrorText("");
 
     try {
       const sent = await sendBridgeWorkspaceMessage({
         ...activeConfig,
-        body
+        body,
+        ...(activeMentions.length > 0 ? { mentions: activeMentions } : {}),
+        ...(replyToMessageId ? { replyToMessageId } : {})
       });
 
       setEvents((current) => appendEvents(current, [sent]));
       setNextCursor(sent.eventId);
       setMessageBody("");
+      setMessageMentions([]);
+      setReplyToMessageId(undefined);
       await refreshWorkspaceAfterWrite(activeConfig);
       setStatusText("消息已发送。");
     } catch {
@@ -297,6 +335,8 @@ export function AgentWorkspacePage() {
       setEvents((current) => appendEvents(current, [sent]));
       setNextCursor(sent.eventId);
       setMessageBody("");
+      setMessageMentions([]);
+      setReplyToMessageId(undefined);
       await refreshWorkspaceAfterWrite(activeConfig);
       setStatusText("附件消息已发送。");
     } catch {
@@ -419,9 +459,20 @@ export function AgentWorkspacePage() {
                     key={participant.id}
                     type="button"
                     className="mention-button"
-                    onClick={() =>
-                      setMessageBody((current) => insertWorkspaceMention(current, participant.displayName))
-                    }
+                    onClick={() => {
+                      setMessageMentions((current) =>
+                        current.some((mention) => mention.participantId === participant.id)
+                          ? current
+                          : [
+                              ...current,
+                              {
+                                participantId: participant.id,
+                                displayName: participant.displayName
+                              }
+                            ]
+                      );
+                      setMessageBody((current) => insertWorkspaceMention(current, participant.displayName));
+                    }}
                   >
                     对 {participant.displayName} 说
                   </button>
@@ -497,7 +548,11 @@ export function AgentWorkspacePage() {
                       <button
                         type="button"
                         aria-label={`引用回复 ${event.eventId}`}
-                        onClick={() => setMessageBody(createWorkspaceReplyDraft(event))}
+                        onClick={() => {
+                          const draft = createWorkspaceReplyDraft(event);
+                          setMessageBody(draft.body);
+                          setReplyToMessageId(draft.replyToMessageId);
+                        }}
                       >
                         引用回复
                       </button>
@@ -516,7 +571,11 @@ export function AgentWorkspacePage() {
                       <button
                         type="button"
                         aria-label={`引用回复 ${event.eventId}`}
-                        onClick={() => setMessageBody(createWorkspaceReplyDraft(event))}
+                        onClick={() => {
+                          const draft = createWorkspaceReplyDraft(event);
+                          setMessageBody(draft.body);
+                          setReplyToMessageId(draft.replyToMessageId);
+                        }}
                       >
                         引用回复
                       </button>

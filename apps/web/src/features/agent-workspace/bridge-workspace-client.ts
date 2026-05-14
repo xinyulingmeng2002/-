@@ -2,6 +2,7 @@ import type {
   AttachmentRecord,
   MemoryCandidateRecord,
   MessageEventRecord,
+  MessageMentionRecord,
   PrivateMemoryOverview,
   RoomSummaryRecord,
   SharedKnowledgeRecord,
@@ -67,6 +68,8 @@ export type BridgeWorkspaceEventsRequest = BridgeWorkspaceRequest & {
 export type BridgeWorkspaceMessageRequest = BridgeWorkspaceRequest & {
   body: string;
   attachments?: AttachmentRecord[];
+  mentions?: MessageMentionRecord[];
+  replyToMessageId?: string;
 };
 
 export type BridgeWorkspaceFileUploadRequest = {
@@ -157,7 +160,9 @@ export async function sendBridgeWorkspaceMessage(
       sessionId: input.sessionId,
       roomId: input.roomId,
       body: input.body,
-      attachments: input.attachments
+      attachments: input.attachments,
+      mentions: input.mentions,
+      replyToMessageId: input.replyToMessageId
     })
   });
 
