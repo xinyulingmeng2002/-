@@ -7,6 +7,13 @@ export type WorkMemoryMessage = {
   speakerParticipantId: string;
   body: string;
   timestamp: string;
+  mentions?: MessageMention[];
+  replyToMessageId?: string;
+};
+
+export type MessageMention = {
+  participantId: string;
+  displayName: string;
 };
 
 export type WorkMemoryRecord = {

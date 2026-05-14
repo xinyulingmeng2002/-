@@ -171,6 +171,113 @@ describe("messages api", () => {
     }
   });
 
+  it("preserves structured mentions and reply references in message events and work memory", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        payload: {
+          roomId: "room-1",
+          speakerParticipantId: "human-1",
+          body: "> 回复 agent-codex: 上一句\n\n@Codex 我接着说。",
+          mentions: [
+            {
+              participantId: "agent-codex",
+              displayName: "Codex"
+            }
+          ],
+          replyToMessageId: "msg-previous"
+        }
+      });
+
+      expect(created.statusCode).toBe(201);
+      expect(created.json().payload).toEqual(
+        expect.objectContaining({
+          mentions: [
+            {
+              participantId: "agent-codex",
+              displayName: "Codex"
+            }
+          ],
+          replyToMessageId: "msg-previous"
+        })
+      );
+
+      const listed = await app.inject({
+        method: "GET",
+        url: "/api/messages?roomId=room-1"
+      });
+      expect(listed.json().items[0].payload).toEqual(
+        expect.objectContaining({
+          mentions: [
+            {
+              participantId: "agent-codex",
+              displayName: "Codex"
+            }
+          ],
+          replyToMessageId: "msg-previous"
+        })
+      );
+
+      const workMemory = await app.inject({
+        method: "GET",
+        url: "/api/work-memory?roomId=room-1"
+      });
+      expect(workMemory.statusCode).toBe(200);
+      expect(workMemory.json().recentMessages[0]).toEqual(
+        expect.objectContaining({
+          mentions: [
+            {
+              participantId: "agent-codex",
+              displayName: "Codex"
+            }
+          ],
+          replyToMessageId: "msg-previous"
+        })
+      );
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
+  it("rejects invalid structured mentions and reply references", async () => {
+    const tempDir = createTempDir();
+    const app = buildServer({ dataDir: tempDir });
+
+    try {
+      const invalidMention = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        payload: {
+          roomId: "room-1",
+          speakerParticipantId: "human-1",
+          body: "@Codex hi",
+          mentions: [{ participantId: "", displayName: "Codex" }]
+        }
+      });
+      expect(invalidMention.statusCode).toBe(400);
+
+      const invalidReply = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        payload: {
+          roomId: "room-1",
+          speakerParticipantId: "human-1",
+          body: "reply",
+          replyToMessageId: ""
+        }
+      });
+      expect(invalidReply.statusCode).toBe(400);
+    } finally {
+      await app.close();
+      cleanupTempDir(tempDir);
+    }
+  });
+
   it("creates a canonical attachment message with an empty body", async () => {
     const tempDir = createTempDir();
     const app = buildServer({ dataDir: tempDir });

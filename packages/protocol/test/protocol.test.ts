@@ -14,6 +14,35 @@ describe("protocol schemas", () => {
     ).toThrow();
   });
 
+  it("accepts structured public mentions and reply references on messages", () => {
+    expect(
+      messageSchema.parse({
+        id: "m1",
+        roomId: "r1",
+        kind: "chat",
+        speakerParticipantId: "human-1",
+        body: "> 回复 agent-codex: 上一句\n\n@Codex 我接着说。",
+        mentions: [
+          {
+            participantId: "agent-codex",
+            displayName: "Codex"
+          }
+        ],
+        replyToMessageId: "msg-1"
+      })
+    ).toEqual(
+      expect.objectContaining({
+        mentions: [
+          {
+            participantId: "agent-codex",
+            displayName: "Codex"
+          }
+        ],
+        replyToMessageId: "msg-1"
+      })
+    );
+  });
+
   it("rejects unknown keys in protocol objects", () => {
     expect(() =>
       participantSchema.parse({

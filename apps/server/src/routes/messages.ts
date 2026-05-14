@@ -18,6 +18,8 @@ type AttachmentPayload = {
 };
 
 const MAX_SPEAKER_PARTICIPANT_ID_LENGTH = 128;
+const MAX_MENTION_DISPLAY_NAME_LENGTH = 128;
+const MAX_REPLY_TO_MESSAGE_ID_LENGTH = 128;
 const MAX_BODY_LENGTH = 4000;
 
 export const messagesRoutes: FastifyPluginAsync<MessagesRoutesOptions> = async (app, options) => {
@@ -29,6 +31,8 @@ export const messagesRoutes: FastifyPluginAsync<MessagesRoutesOptions> = async (
     const speakerParticipantId = payload?.speakerParticipantId;
     const body = payload?.body;
     const attachmentsValue = payload?.attachments;
+    const mentionsValue = payload?.mentions;
+    const replyToMessageIdValue = payload?.replyToMessageId;
 
     if (
       typeof roomId !== "string" ||
@@ -92,6 +96,52 @@ export const messagesRoutes: FastifyPluginAsync<MessagesRoutesOptions> = async (
       attachments = parsedAttachments as AttachmentPayload[];
     }
 
+    let mentions: Array<{ participantId: string; displayName: string }> | undefined;
+    if (mentionsValue !== undefined) {
+      if (!Array.isArray(mentionsValue)) {
+        return reply.code(400).send({ error: "mentions must be an array" });
+      }
+
+      const parsedMentions = mentionsValue.map((mention) => {
+        if (
+          typeof mention !== "object" ||
+          mention === null ||
+          typeof mention.participantId !== "string" ||
+          mention.participantId.length === 0 ||
+          mention.participantId.length > MAX_SPEAKER_PARTICIPANT_ID_LENGTH ||
+          typeof mention.displayName !== "string" ||
+          mention.displayName.length === 0 ||
+          mention.displayName.length > MAX_MENTION_DISPLAY_NAME_LENGTH
+        ) {
+          return null;
+        }
+
+        return {
+          participantId: mention.participantId,
+          displayName: mention.displayName
+        };
+      });
+
+      if (parsedMentions.some((mention) => mention === null)) {
+        return reply.code(400).send({ error: "mentions contain invalid items" });
+      }
+
+      mentions = parsedMentions as Array<{ participantId: string; displayName: string }>;
+    }
+
+    let replyToMessageId: string | undefined;
+    if (replyToMessageIdValue !== undefined) {
+      if (
+        typeof replyToMessageIdValue !== "string" ||
+        replyToMessageIdValue.length === 0 ||
+        replyToMessageIdValue.length > MAX_REPLY_TO_MESSAGE_ID_LENGTH
+      ) {
+        return reply.code(400).send({ error: `replyToMessageId must be 1-${MAX_REPLY_TO_MESSAGE_ID_LENGTH} chars` });
+      }
+
+      replyToMessageId = replyToMessageIdValue;
+    }
+
     if (body.trim().length === 0 && (!attachments || attachments.length === 0)) {
       return reply.code(400).send({ error: "body or attachments are required" });
     }
@@ -101,7 +151,9 @@ export const messagesRoutes: FastifyPluginAsync<MessagesRoutesOptions> = async (
         roomId,
         speakerParticipantId,
         body,
-        attachments
+        attachments,
+        mentions,
+        replyToMessageId
       });
 
       return reply.code(201).send(event);

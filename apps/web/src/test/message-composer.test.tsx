@@ -46,7 +46,13 @@ describe("MessageComposer", () => {
     expect(onSend).toHaveBeenCalledWith(
       expect.objectContaining({
         speakerParticipantId: "human-1",
-        body: "@Codex 你怎么看这个方案？"
+        body: "@Codex 你怎么看这个方案？",
+        mentions: [
+          {
+            participantId: "agent-codex",
+            displayName: "Codex"
+          }
+        ]
       })
     );
   });
@@ -61,7 +67,8 @@ describe("MessageComposer", () => {
         onSend={onSend}
         draft={{
           id: "reply-msg-1",
-          body: "> 回复 agent-realtime: 来自实时链路\n\n"
+          body: "> 回复 agent-realtime: 来自实时链路\n\n",
+          replyToMessageId: "msg-1"
         }}
       />
     );
@@ -74,7 +81,8 @@ describe("MessageComposer", () => {
     expect(onSend).toHaveBeenCalledWith(
       expect.objectContaining({
         speakerParticipantId: "human-1",
-        body: "> 回复 agent-realtime: 来自实时链路\n\n我接着这个点说。"
+        body: "> 回复 agent-realtime: 来自实时链路\n\n我接着这个点说。",
+        replyToMessageId: "msg-1"
       })
     );
   });

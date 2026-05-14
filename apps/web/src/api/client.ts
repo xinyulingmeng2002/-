@@ -20,7 +20,14 @@ export type MessageEventRecord = {
     speakerParticipantId?: string;
     body?: string;
     attachments?: AttachmentRecord[];
+    mentions?: MessageMentionRecord[];
+    replyToMessageId?: string;
   };
+};
+
+export type MessageMentionRecord = {
+  participantId: string;
+  displayName: string;
 };
 
 export type AttachmentRecord = {
@@ -265,6 +272,8 @@ export class ApiClient {
     speakerParticipantId: string;
     body: string;
     attachments?: AttachmentRecord[];
+    mentions?: MessageMentionRecord[];
+    replyToMessageId?: string;
   }): Promise<MessageEventRecord> {
     return this.request<MessageEventRecord>("/api/messages", {
       method: "POST",

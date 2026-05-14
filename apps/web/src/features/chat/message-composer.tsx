@@ -6,6 +6,8 @@ import { UploadButton } from "../uploads/upload-button";
 export type MessageComposerSubmit = {
   speakerParticipantId: string;
   body: string;
+  mentions?: MessageComposerMention[];
+  replyToMessageId?: string;
 };
 
 export type MessageComposerMentionTarget = {
@@ -13,9 +15,16 @@ export type MessageComposerMentionTarget = {
   displayName: string;
 };
 
+export type MessageComposerMention = {
+  participantId: string;
+  displayName: string;
+};
+
 export type MessageComposerDraft = {
   id: string;
   body: string;
+  mentions?: MessageComposerMention[];
+  replyToMessageId?: string;
 };
 
 type MessageComposerProps = {
@@ -38,11 +47,15 @@ export function MessageComposer({
   disabled = false
 }: MessageComposerProps) {
   const [body, setBody] = useState("");
+  const [mentions, setMentions] = useState<MessageComposerMention[]>([]);
+  const [replyToMessageId, setReplyToMessageId] = useState<string | undefined>();
   const textareaId = useId();
 
   useEffect(() => {
     if (draft) {
       setBody(draft.body);
+      setMentions(draft.mentions ?? []);
+      setReplyToMessageId(draft.replyToMessageId);
     }
   }, [draft?.id]);
 
@@ -54,14 +67,29 @@ export function MessageComposer({
       return;
     }
 
+    const activeMentions = mentions.filter((mention) => nextBody.includes(`@${mention.displayName}`));
+
     await onSend({
       speakerParticipantId,
-      body: nextBody
+      body: nextBody,
+      ...(activeMentions.length > 0 ? { mentions: activeMentions } : {}),
+      ...(replyToMessageId ? { replyToMessageId } : {})
     });
     setBody("");
+    setMentions([]);
+    setReplyToMessageId(undefined);
   }
 
   function insertMention(target: MessageComposerMentionTarget) {
+    const structuredMention = {
+      participantId: target.id,
+      displayName: target.displayName
+    };
+    setMentions((current) =>
+      current.some((mention) => mention.participantId === structuredMention.participantId)
+        ? current
+        : [...current, structuredMention]
+    );
     setBody((current) => {
       const mention = `@${target.displayName} `;
       if (current.startsWith(mention)) {

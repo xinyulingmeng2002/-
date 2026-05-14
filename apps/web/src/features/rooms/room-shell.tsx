@@ -59,7 +59,9 @@ function normalizeEvent(event: MessageEventRecord): TimelineMessage {
     body: event.payload.body ?? "",
     speakerParticipantId: event.payload.speakerParticipantId ?? "system",
     timestamp: event.timestamp,
-    attachments: event.payload.attachments
+    attachments: event.payload.attachments,
+    mentions: event.payload.mentions,
+    replyToMessageId: event.payload.replyToMessageId
   };
 }
 
@@ -176,19 +178,29 @@ function resolveWorkspaceSessionId(
   )?.id;
 }
 
-function createReplyDraft(message: TimelineMessage): string {
+function createReplyDraft(message: TimelineMessage): MessageComposerDraft {
   const textBody = message.body.trim().replace(/\s+/g, " ");
   const attachmentNames = message.attachments?.map((attachment) => attachment.name).join(", ");
   const sourceText = textBody || (attachmentNames ? `[附件] ${attachmentNames}` : "[空消息]");
   const excerpt = sourceText.length > 80 ? `${sourceText.slice(0, 80)}...` : sourceText;
 
-  return `> 回复 ${message.speakerParticipantId}: ${excerpt}\n\n`;
+  return {
+    id: `reply:${message.id}:${Date.now()}`,
+    body: `> 回复 ${message.speakerParticipantId}: ${excerpt}\n\n`,
+    replyToMessageId: message.id
+  };
 }
 
 function createMentionDraft(participant: ParticipantViewModel): MessageComposerDraft {
   return {
     id: `mention:${participant.id}:${Date.now()}`,
-    body: `@${participant.displayName} `
+    body: `@${participant.displayName} `,
+    mentions: [
+      {
+        participantId: participant.id,
+        displayName: participant.displayName
+      }
+    ]
   };
 }
 
@@ -551,7 +563,9 @@ export function RoomShell({
     const event = await apiClient.createMessage({
       roomId: activeRoomId,
       speakerParticipantId: input.speakerParticipantId,
-      body: input.body
+      body: input.body,
+      ...(input.mentions && input.mentions.length > 0 ? { mentions: input.mentions } : {}),
+      ...(input.replyToMessageId ? { replyToMessageId: input.replyToMessageId } : {})
     });
 
     const normalizedEvent = normalizeEvent(event);
@@ -566,10 +580,7 @@ export function RoomShell({
   }
 
   function handleReply(message: TimelineMessage) {
-    setComposerDraft({
-      id: `${message.id}:${Date.now()}`,
-      body: createReplyDraft(message)
-    });
+    setComposerDraft(createReplyDraft(message));
   }
 
   function handleMentionParticipant(participant: ParticipantViewModel) {

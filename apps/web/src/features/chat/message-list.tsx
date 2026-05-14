@@ -7,6 +7,11 @@ export type TimelineMessage = {
   speakerParticipantId: string;
   timestamp: string;
   attachments?: AttachmentRecord[];
+  mentions?: Array<{
+    participantId: string;
+    displayName: string;
+  }>;
+  replyToMessageId?: string;
 };
 
 type MessageListProps = {

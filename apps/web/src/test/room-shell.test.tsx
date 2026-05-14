@@ -314,7 +314,13 @@ describe("RoomShell", () => {
       expect(apiClient.createMessage).toHaveBeenCalledWith({
         roomId: "room-1",
         speakerParticipantId: "human-1",
-        body: "@实时助手 你怎么看这个方向？"
+        body: "@实时助手 你怎么看这个方向？",
+        mentions: [
+          {
+            participantId: "agent-realtime",
+            displayName: "实时助手"
+          }
+        ]
       });
     });
 
@@ -339,7 +345,8 @@ describe("RoomShell", () => {
       expect(apiClient.createMessage).toHaveBeenLastCalledWith({
         roomId: "room-1",
         speakerParticipantId: "human-1",
-        body: "> 回复 agent-realtime: 来自实时链路\n\n我接着这个点说。"
+        body: "> 回复 agent-realtime: 来自实时链路\n\n我接着这个点说。",
+        replyToMessageId: "msg-1"
       });
     });
 

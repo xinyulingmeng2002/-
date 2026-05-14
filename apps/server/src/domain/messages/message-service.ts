@@ -14,6 +14,13 @@ export interface AppendChatMessageInput {
   speakerParticipantId: string;
   body: string;
   attachments?: MessageAttachmentInput[];
+  mentions?: MessageMentionInput[];
+  replyToMessageId?: string;
+}
+
+export interface MessageMentionInput {
+  participantId: string;
+  displayName: string;
 }
 
 export interface MessageAttachmentInput {
@@ -78,6 +85,8 @@ export class MessageService {
         messageId,
         speakerParticipantId: input.speakerParticipantId,
         body: input.body,
+        ...(input.mentions ? { mentions: input.mentions } : {}),
+        ...(input.replyToMessageId ? { replyToMessageId: input.replyToMessageId } : {}),
         ...(attachments ? { attachments } : {})
       },
       source: inferEventSource(input.speakerParticipantId),
@@ -102,6 +111,8 @@ export class MessageService {
           messageId,
           speakerParticipantId: input.speakerParticipantId,
           body: input.body,
+          ...(input.mentions ? { mentions: input.mentions } : {}),
+          ...(input.replyToMessageId ? { replyToMessageId: input.replyToMessageId } : {}),
           timestamp
         }
       ],
