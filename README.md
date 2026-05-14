@@ -12,9 +12,12 @@ Phase 1A 已合并到 `main` 的独立协作台底座，包含：
 当前状态：
 
 - Phase 1A 基础线已经完成并合并：空间 / 房间、消息、附件、Web 时间线、参与者、bridge token/session、候选审核、共享知识、工作记忆、房间摘要、`L3` 私有记忆受控工作面
+- Phase 1B 外部 Agent 实战接入闭环已经收口：Agent 邀请钥匙、bridge token/session、房间绑定、事件拉取、workspace snapshot、adapter `events watch`、cursor 持久化、心跳诊断、CLI smoke 与实战 Runbook
+- Phase 1C 正在进行：重点从“能接入 Agent”推进到“多个真人 / Agent 像群聊成员一样自然交流”，已补齐成员可见性、指名发言、mention 高亮、公开回复引用、Agent 工作台提及 / 回复聚合、成员状态、成员卡工作台入口等群聊体验
 - 当前主线未变：这是通用多 Agent 协作平台，和秋灵本体小窝没有架构从属或业务绑定关系；项目只是物理上放在同一工作区根目录附近
 - OpenClaw / Codex 是首批示范适配器，不是平台核心边界；后续应允许用户按房间选择、邀请、启用或移除任意符合 bridge 边界的 Agent
-- 下一阶段优先级：从 `main` 新开 Phase 1B 后续分支，做 Agent 专用工作入口与真实 bridge 接入体验，不继续扩大公共右侧面板
+- 当前复盘入口：`docs/2026-05-14-多智能体协同-Phase-1C当前复盘与下一阶段优先级.md`
+- 下一阶段优先级：继续 Phase 1C，但避免钻 UI 细节；优先增强外部 adapter `events watch` 对“提到我 / 回复我”等重点事件的输出，让被邀请进房间的外部 Agent 更稳定地参与公开群聊
 
 ## 安装
 
