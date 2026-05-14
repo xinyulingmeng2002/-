@@ -347,16 +347,62 @@ function getEventBody(event: unknown): string {
   return typeof body === "string" ? body : "";
 }
 
-function resolveAttentionTags(event: unknown, session: OpenClawBridgeSessionRecord): string[] {
-  const body = getEventBody(event);
-  if (!body) {
-    return [];
+function getEventPayload(event: unknown): Record<string, unknown> {
+  const payload = (event as { payload?: unknown })?.payload;
+  return typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {};
+}
+
+function getEventMessageId(event: unknown): string | undefined {
+  const messageId = getEventPayload(event).messageId;
+  return typeof messageId === "string" && messageId.length > 0 ? messageId : undefined;
+}
+
+function getEventSpeakerParticipantId(event: unknown): string | undefined {
+  const speakerParticipantId = getEventPayload(event).speakerParticipantId;
+  return typeof speakerParticipantId === "string" && speakerParticipantId.length > 0
+    ? speakerParticipantId
+    : undefined;
+}
+
+function isStructuredMentionForAgent(event: unknown, session: OpenClawBridgeSessionRecord): boolean {
+  const mentions = getEventPayload(event).mentions;
+  if (!Array.isArray(mentions)) {
+    return false;
   }
 
+  return mentions.some((mention) => {
+    if (typeof mention !== "object" || mention === null) {
+      return false;
+    }
+
+    const record = mention as { participantId?: unknown; displayName?: unknown };
+    return record.participantId === session.agentId || record.displayName === session.displayName;
+  });
+}
+
+function isStructuredReplyForAgent(
+  event: unknown,
+  session: OpenClawBridgeSessionRecord,
+  events: unknown[]
+): boolean {
+  const replyToMessageId = getEventPayload(event).replyToMessageId;
+  if (typeof replyToMessageId !== "string" || replyToMessageId.length === 0) {
+    return false;
+  }
+
+  const repliedEvent = events.find((candidate) => getEventMessageId(candidate) === replyToMessageId);
+  return getEventSpeakerParticipantId(repliedEvent) === session.agentId;
+}
+
+function resolveAttentionTags(event: unknown, session: OpenClawBridgeSessionRecord, events: unknown[]): string[] {
+  const body = getEventBody(event);
   const names = [session.displayName, session.agentId].filter(Boolean);
   const tags: string[] = [];
 
-  if (
+  if (isStructuredMentionForAgent(event, session)) {
+    tags.push("mentioned-you");
+  } else if (
+    body &&
     names.some((name) =>
       new RegExp(`(^|\\s)@${escapeRegExp(name)}(?=$|\\s|[.,!?，。！？:：;；、])`, "u").test(body)
     )
@@ -364,7 +410,10 @@ function resolveAttentionTags(event: unknown, session: OpenClawBridgeSessionReco
     tags.push("mentioned-you");
   }
 
-  if (
+  if (isStructuredReplyForAgent(event, session, events)) {
+    tags.push("reply-to-you");
+  } else if (
+    body &&
     names.some((name) =>
       new RegExp(`^>\\s*回复\\s+${escapeRegExp(name)}\\s*:`, "u").test(body)
     )
@@ -384,7 +433,7 @@ function annotateWatchedBatch(batch: unknown, session: OpenClawBridgeSessionReco
   return {
     ...(batch as Record<string, unknown>),
     items: items.map((item) => {
-      const attentionTags = resolveAttentionTags(item, session);
+      const attentionTags = resolveAttentionTags(item, session, items);
       return attentionTags.length > 0 ? { ...(item as Record<string, unknown>), attentionTags } : item;
     })
   };

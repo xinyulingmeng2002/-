@@ -355,6 +355,16 @@ describe("generic bridge runtime", () => {
       pullEvents: vi.fn().mockResolvedValue({
         items: [
           {
+            eventId: "evt-agent-original",
+            kind: "message.created",
+            roomId: "room-1",
+            payload: {
+              messageId: "msg-agent-original",
+              body: "Generic Agent 之前发出的消息。",
+              speakerParticipantId: "agent-generic-main"
+            }
+          },
+          {
             eventId: "evt-mentioned",
             kind: "message.created",
             roomId: "room-1",
@@ -371,9 +381,29 @@ describe("generic bridge runtime", () => {
               body: "> 回复 agent-generic-main: 刚才那句\n\n我补充一下。",
               speakerParticipantId: "human-1"
             }
+          },
+          {
+            eventId: "evt-structured-mentioned",
+            kind: "message.created",
+            roomId: "room-1",
+            payload: {
+              body: "结构化提及正文不含 at 符号。",
+              speakerParticipantId: "human-1",
+              mentions: [{ participantId: "agent-generic-main", displayName: "Generic Agent" }]
+            }
+          },
+          {
+            eventId: "evt-structured-reply",
+            kind: "message.created",
+            roomId: "room-1",
+            payload: {
+              body: "结构化回复正文不含引用块。",
+              speakerParticipantId: "human-1",
+              replyToMessageId: "msg-agent-original"
+            }
           }
         ],
-        nextCursor: "evt-reply"
+        nextCursor: "evt-structured-reply"
       })
     };
     const sleep = vi.fn().mockImplementation(async () => {
@@ -412,15 +442,26 @@ describe("generic bridge runtime", () => {
         {
           items: [
             expect.objectContaining({
+              eventId: "evt-agent-original"
+            }),
+            expect.objectContaining({
               eventId: "evt-mentioned",
               attentionTags: ["mentioned-you"]
             }),
             expect.objectContaining({
               eventId: "evt-reply",
               attentionTags: ["reply-to-you"]
+            }),
+            expect.objectContaining({
+              eventId: "evt-structured-mentioned",
+              attentionTags: ["mentioned-you"]
+            }),
+            expect.objectContaining({
+              eventId: "evt-structured-reply",
+              attentionTags: ["reply-to-you"]
             })
           ],
-          nextCursor: "evt-reply"
+          nextCursor: "evt-structured-reply"
         }
       ]);
     } finally {

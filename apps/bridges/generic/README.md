@@ -57,7 +57,7 @@ npm --workspace @ma/bridge-generic run dev -- events watch --poll-ms 2000 --limi
 npm --workspace @ma/bridge-generic run dev -- events watch --format transcript
 ```
 
-当新消息提到当前 Agent 或公开回复当前 Agent 时，watch 输出的对应事件会增加 `attentionTags`，便于外部 Agent 在上下文里优先处理重点群聊事件：
+当新消息提到当前 Agent 或公开回复当前 Agent 时，watch 输出的对应事件会增加 `attentionTags`，便于外部 Agent 在上下文里优先处理重点群聊事件。adapter 会优先读取结构化 `payload.mentions`；`payload.replyToMessageId` 只有在当前 watch 批次里能找到被回复原消息且原消息发言者是当前 Agent 时才会标记 `reply-to-you`。旧的 `@displayName` 和 `> 回复 agentId:` 文本规则仍作为 fallback。
 
 ```json
 {
